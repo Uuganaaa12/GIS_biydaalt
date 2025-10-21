@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="mn">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Шинэ газар нэмэх</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        padding: 10px 0;
+        gap: 20px;
+      }
+
+header .controls {
+  position: absolute;
+  left: 40px;
+}
+      .form-wrap { max-width: 900px; margin: 12px auto; padding: 12px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .row label { display: block; font-weight: 600; margin-bottom: 4px; }
+      .row input, .row select, .row textarea { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; }
+      #pickMap { height: 380px; margin-top: 12px; border-radius: 8px; overflow: hidden; }
+      .actions { display: flex; gap: 8px; margin-top: 12px; }
+      .actions button { padding: 8px 12px; }
+      .preview { margin-top: 8px; }
+      .small { color:#6b7280; font-size:12px; }
+    </style>
+  </head>
+  <body>
+    <header>      
+      <div class="controls">
+        <a href="/" style="color:white; text-decoration: none; background-color: #10b981; padding-left: 8px; padding-right: 8px; padding-top: 4px; padding-bottom: 4px; border-radius: 4%; margin-left: 40px;">Буцах</a>
+      </div>
+      <h2>Шинэ газар нэмэх</h2>
+
+    </header>
+    <div class="form-wrap">
+      <div class="row">
+        <div>
+          <label>Нэр</label>
+          <input id="name" type="text" placeholder="Ж: Sukhbaatar Square" />
+        </div>
+        <div>
+          <label for="place_type">Төрөл</label>
+          <select id="place_type">
+            <option value="">-- Сонгох --</option>
+            <option value="photo_spot">Photo Spot</option>
+            <option value="restaurant">Restaurant</option>
+            <option value="hotel">Hotel</option>
+            <option value="museum">Museum</option>
+          </select>
+        </div>
+        <div style="grid-column: span 2;">
+          <label>Тайлбар</label>
+          <textarea id="description" rows="3" placeholder="Тайлбар..."></textarea>
+        </div>
+        <div>
+          <label>Уртраг (lon)</label>
+          <input id="lon" type="number" step="any" placeholder="106.9176" />
+        </div>
+        <div>
+          <label>Өргөрөг (lat)</label>
+          <input id="lat" type="number" step="any" placeholder="47.9205" />
+        </div>
+        <div style="grid-column: span 2;">
+          <label>Зураг</label>
+          <input id="image" type="file" accept="image/*" />
+          <div class="small">Зургаа оруулахгүй бол image_url талбар хоосон үлдэнэ.</div>
+          <div id="preview" class="preview"></div>
+        </div>
+      </div>
+      <div id="pickMap"></div>
+      <div class="actions">
+        <!-- <button id="reverseBtn">Газрын зураг дээр дарахад бөглөх</button> -->
+        <button id="submitBtn" style="background:#10b981; color:white; border:none; border-radius:6px;">Хадгалах</button>
+      </div>
+    </div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="new_place.js"></script>
+  </body>
+</html>

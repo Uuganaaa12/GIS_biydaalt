@@ -6,6 +6,11 @@ from shapely.geometry import shape, mapping, LineString
 import math
 import requests
 import json
+import os
+import tempfile
+from werkzeug.utils import secure_filename
+import cloudinary
+import cloudinary.uploader
 
 main_bp = Blueprint("main", __name__)
 
@@ -20,6 +25,14 @@ def health():
         return jsonify({"status": "ok"})
     except Exception as e:
         return jsonify({"status": "error", "detail": str(e)}), 500
+
+@main_bp.route("/admin_check", methods=["POST"])  # simple header-based secret check
+def admin_check():
+    secret = request.headers.get("X-Admin-Secret")
+    expected = os.getenv("ADMIN_SECRET")
+    if expected and secret == expected:
+        return jsonify({"ok": True})
+    return jsonify({"ok": False}), 401
 
 @main_bp.route("/import_geojson", methods=["POST"])
 def import_geojson():
@@ -39,16 +52,102 @@ def import_geojson():
 
     return jsonify({"status": "success", "count": len(features)})
 
+@main_bp.route("/places", methods=["POST"]) 
+def create_place():
+    try:
+        secret = request.headers.get("X-Admin-Secret")
+        expected = os.getenv("ADMIN_SECRET")
+        if not expected or secret != expected:
+            return jsonify({"error": "unauthorized"}), 401
+
+        # Accept both JSON and multipart/form-data
+        name = None
+        place_type = None
+        description = None
+        lon = None
+        lat = None
+        image_url = None
+
+        if request.content_type and request.content_type.startswith("application/json"):
+            data = request.get_json() or {}
+            name = data.get("name")
+            place_type = data.get("place_type") or data.get("type")
+            description = data.get("description")
+            lon = data.get("lon")
+            lat = data.get("lat")
+            image_url = data.get("image_url")
+        else:
+            form = request.form
+            name = form.get("name")
+            place_type = form.get("place_type") or form.get("type")
+            description = form.get("description")
+            lon = form.get("lon")
+            lat = form.get("lat")
+            file = request.files.get("image")
+            # Upload image to Cloudinary if present
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                # Configure cloudinary
+                cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
+                api_key = os.getenv("CLOUDINARY_API_KEY")
+                api_secret = os.getenv("CLOUDINARY_API_SECRET")
+                folder = os.getenv("CLOUDINARY_FOLDER", "ubmap")
+                if cloud_name and api_key and api_secret:
+                    cloudinary.config(cloud_name=cloud_name, api_key=api_key, api_secret=api_secret)
+                    try:
+                        upload_res = cloudinary.uploader.upload(file, folder=folder, resource_type="image")
+                        image_url = upload_res.get("secure_url") or upload_res.get("url")
+                    except Exception as e:
+                        return jsonify({"error": f"image upload failed: {e}"}), 400
+
+        # Validate
+        if not name or not place_type or lon is None or lat is None:
+            return jsonify({"error": "name, place_type, lon, lat are required"}), 400
+        try:
+            lon = float(lon)
+            lat = float(lat)
+        except Exception:
+            return jsonify({"error": "invalid lon/lat"}), 400
+
+        geom = from_shape(shape({"type": "Point", "coordinates": [lon, lat]}), srid=4326)
+        place = Place(name=name, place_type=place_type, description=description, image_url=image_url, geom=geom)
+        db.session.add(place)
+        db.session.commit()
+
+        # Return created feature
+        return jsonify({
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [lon, lat]},
+            "properties": {
+                "id": place.id,
+                "name": place.name,
+                "type": place.place_type,
+                "description": place.description,
+                "image_url": place.image_url,
+            }
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+
 
 @main_bp.route("/places")
 def get_places():
-    # Optional filters: type and bbox (minx,miny,maxx,maxy in lon,lat)
+    # Optional filters: type or types (CSV), and bbox (minx,miny,maxx,maxy in lon,lat)
     place_type = request.args.get("type")
+    types_csv = request.args.get("types")
     bbox_param = request.args.get("bbox")
 
     # Return from DB
     q = Place.query
-    if place_type:
+    if types_csv:
+        try:
+            types_list = [t.strip() for t in types_csv.split(",") if t.strip()]
+            if types_list:
+                q = q.filter(Place.place_type.in_(types_list))
+        except Exception:
+            pass
+    elif place_type:
         q = q.filter(Place.place_type == place_type)
     if bbox_param:
         try:
@@ -70,6 +169,7 @@ def get_places():
                 "name": p.name,
                 "type": p.place_type,
                 "description": p.description,
+                "image_url": getattr(p, 'image_url', None),
             }
         })
     return jsonify({"type": "FeatureCollection", "features": features})
@@ -92,6 +192,18 @@ def haversine(lon1, lat1, lon2, lat2):
     c = 2*math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R*c
 
+def _osrm_base_for_profile(profile: str) -> str:
+    """Return the base URL (host:port) of the OSRM instance for a given profile.
+    We run separate containers for car and foot.
+    """
+    p = (profile or "car").lower()
+    if p == "foot":
+        # Separate OSRM instance prepared with foot.lua
+        return "http://osrm_foot:5003"
+    # default to car
+    return "http://osrm:5002"
+
+
 @main_bp.route("/route")
 def simple_route():
     try:
@@ -106,31 +218,40 @@ def simple_route():
         elon, elat = map(float, end.split(","))
 
         # Try OSRM first
-        # OSRM doesn't have a 'bus' profile by default; map it to 'car'
-        osrm_profile = "car" if mode == "bus" else mode
-        osrm_url = f"http://osrm:5002/route/v1/{osrm_profile}/{slon},{slat};{elon},{elat}?overview=full&geometries=geojson"
-        try:
-            resp = requests.get(osrm_url, timeout=5)
-            if resp.status_code == 200:
-                data = resp.json()
-                if data.get("code") == "Ok" and data.get("routes"):
-                    route = data["routes"][0]
-                    geom = route["geometry"]
-                    distance_m = route["distance"]
-                    duration_s = route["duration"]
-                    
-                    feature = {
-                        "type": "Feature",
-                        "geometry": geom,
-                        "properties": {
-                            "distance_m": round(distance_m, 1),
-                            "duration_s": round(duration_s, 1),
-                            "mode": mode
-                        }
-                    }
-                    return jsonify({"type": "FeatureCollection", "features": [feature]})
-        except Exception:
-            pass  # fallback to straight line
+        # Map 'bus' to 'car' since OSRM doesn't have a bus profile by default
+        osrm_profile = "car" if mode == "bus" else (mode or "car")
+
+        # Primary attempt with requested profile
+        primary = _osrm_route(osrm_profile, slon, slat, elon, elat)
+        if primary:
+            geom, distance_m, duration_s = primary
+            feature = {
+                "type": "Feature",
+                "geometry": geom,
+                "properties": {
+                    "distance_m": round(distance_m, 1),
+                    "duration_s": round(duration_s, 1),
+                    "mode": mode,
+                },
+            }
+            return jsonify({"type": "FeatureCollection", "features": [feature]})
+
+        # Graceful fallback: if walking profile is unavailable, try car routing instead
+        if osrm_profile == "foot":
+            alt = _osrm_route("car", slon, slat, elon, elat)
+            if alt:
+                geom, distance_m, duration_s = alt
+                feature = {
+                    "type": "Feature",
+                    "geometry": geom,
+                    "properties": {
+                        "distance_m": round(distance_m, 1),
+                        "duration_s": round(duration_s, 1),
+                        "mode": "foot-fallback-car",
+                        "note": "foot OSRM unavailable; used car routing as fallback",
+                    },
+                }
+                return jsonify({"type": "FeatureCollection", "features": [feature]})
         
         # Fallback: straight line
         line = LineString([(slon, slat), (elon, elat)])
@@ -152,7 +273,8 @@ def simple_route():
 def _osrm_route(profile: str, slon: float, slat: float, elon: float, elat: float):
     """Helper to call OSRM and return (geometry, distance_m, duration_s) or None on failure."""
     try:
-        url = f"http://osrm:5002/route/v1/{profile}/{slon},{slat};{elon},{elat}?overview=full&geometries=geojson"
+        base = _osrm_base_for_profile(profile)
+        url = f"{base}/route/v1/{profile}/{slon},{slat};{elon},{elat}?overview=full&geometries=geojson"
         r = requests.get(url, timeout=6)
         if r.status_code == 200:
             d = r.json()
@@ -162,6 +284,151 @@ def _osrm_route(profile: str, slon: float, slat: float, elon: float, elat: float
     except Exception:
         pass
     return None
+
+
+# -----------------------------
+# Overpass (OSM) bus stop import
+# -----------------------------
+OVERPASS_ENDPOINTS = [
+    # Override via env by providing a single endpoint
+    os.getenv("OVERPASS_URL"),
+    "https://overpass-api.de/api/interpreter",
+    "https://lz4.overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+]
+OVERPASS_ENDPOINTS = [e for e in OVERPASS_ENDPOINTS if e]
+
+
+def _overpass_fetch_bus_stops(bbox: str | None = None, timeout: int = 25):
+    """Fetch bus stop nodes from Overpass within bbox.
+    bbox format: "minlon,minlat,maxlon,maxlat" (WGS84). If None, use a default box for Ulaanbaatar.
+    Returns a list of dicts: {name, lon, lat}.
+    """
+    if not bbox:
+        # Rough bounding box around Ulaanbaatar city center
+        # Overpass bbox format: south,west,north,east (lat_min, lon_min, lat_max, lon_max)
+        bbox = "47.84,106.76,47.99,107.20"
+
+    q = f"""
+    [out:json][timeout:{timeout}];
+    (
+      node["highway"="bus_stop"]({bbox});
+      node["public_transport"="platform"]({bbox});
+      node["public_transport"="stop_position"]({bbox});
+      way["public_transport"="platform"]({bbox});
+    );
+    out body center;
+    """
+    for endpoint in OVERPASS_ENDPOINTS:
+        try:
+            # Try POST first
+            r = requests.post(endpoint, data={"data": q}, timeout=timeout + 5)
+            if r.status_code >= 400:
+                # Try GET fallback
+                r = requests.get(endpoint, params={"data": q}, timeout=timeout + 5)
+            r.raise_for_status()
+            data = r.json()
+            elements = data.get("elements", [])
+            out = []
+            for el in elements:
+                t = el.get("type")
+                tags = el.get("tags", {})
+                name = tags.get("name") or tags.get("ref") or "Bus Stop"
+                if t == "node":
+                    lon = el.get("lon")
+                    lat = el.get("lat")
+                else:
+                    c = el.get("center") or {}
+                    lon = c.get("lon")
+                    lat = c.get("lat")
+                if lon is None or lat is None:
+                    continue
+                out.append({"name": name, "lon": float(lon), "lat": float(lat)})
+            if out:
+                return out
+        except Exception:
+            continue
+    return []
+
+
+def _insert_bus_stops_dedup(stops: list[dict], max_distance_m: float = 20.0) -> tuple[int, int]:
+    """Insert bus stops with simple de-duplication by proximity+name.
+    Returns (inserted_count, skipped_count).
+    """
+    ins, skip = 0, 0
+    for st in stops:
+        name = st.get("name") or "Bus Stop"
+        lon = st.get("lon")
+        lat = st.get("lat")
+        if lon is None or lat is None:
+            skip += 1
+            continue
+
+        # Check existing nearby stop with same name within threshold
+        point = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
+        cand = (
+            db.session.query(Place)
+            .filter(Place.place_type == "bus_stop")
+            .order_by(func.ST_DistanceSphere(Place.geom, point))
+            .first()
+        )
+        if cand is not None:
+            try:
+                dist = db.session.execute(
+                    db.text("SELECT ST_DistanceSphere(:a, :b)"),
+                    {"a": point, "b": cand.geom},
+                ).scalar()
+            except Exception:
+                dist = None
+            same_name = (cand.name or "").strip().lower() == name.strip().lower()
+            if dist is not None and dist <= max_distance_m and same_name:
+                skip += 1
+                continue
+
+        geom = from_shape(shape({"type": "Point", "coordinates": [lon, lat]}), srid=4326)
+        db.session.add(Place(name=name, place_type="bus_stop", description=None, geom=geom))
+        ins += 1
+
+    if ins:
+        db.session.commit()
+    return ins, skip
+
+
+@main_bp.route("/import_bus_stops_overpass", methods=["POST", "GET"])  # optional bbox query param
+def import_bus_stops_overpass():
+    """Import bus stops from Overpass into DB automatically.
+    Optional JSON or query string field: bbox="minlon,minlat,maxlon,maxlat".
+    """
+    payload = {}
+    try:
+        payload = request.get_json(silent=True) or {}
+    except Exception:
+        payload = {}
+    bbox = request.args.get("bbox") or payload.get("bbox")
+    stops = _overpass_fetch_bus_stops(bbox=bbox)
+    inserted, skipped = _insert_bus_stops_dedup(stops)
+    return jsonify({
+        "status": "ok",
+        "source": "overpass",
+        "bbox": bbox,
+        "inserted": inserted,
+        "skipped": skipped,
+        "total_fetched": len(stops),
+    })
+
+
+@main_bp.route("/bus_stop_count")
+def bus_stop_count():
+    try:
+        c = (
+            db.session.query(func.count())
+            .select_from(Place)
+            .filter(Place.place_type == "bus_stop")
+            .scalar()
+        )
+        return jsonify({"count": int(c)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @main_bp.route("/route_bus")
@@ -182,6 +449,22 @@ def route_bus():
 
         slon, slat = map(float, start.split(","))
         elon, elat = map(float, end.split(","))
+
+        # Ensure we have bus stops; if none in DB, try to import automatically
+        try:
+            count = (
+                db.session.query(func.count())
+                .select_from(Place)
+                .filter(Place.place_type == "bus_stop")
+                .scalar()
+            )
+        except Exception:
+            count = 0
+        if not count or count == 0:
+            # Attempt a one-time fetch for UB area
+            fetched = _overpass_fetch_bus_stops()
+            if fetched:
+                _insert_bus_stops_dedup(fetched)
 
         # Find nearest bus stops
         point_start = func.ST_SetSRID(func.ST_MakePoint(slon, slat), 4326)
@@ -240,8 +523,8 @@ def route_bus():
 
         features = []
         summary = {
-            "start_stop": {"id": start_stop.id, "name": start_stop.name},
-            "end_stop": {"id": end_stop.id, "name": end_stop.name},
+                "start_stop": {"id": start_stop.id, "name": start_stop.name, "coords": [sst_lon, sst_lat]},
+                "end_stop": {"id": end_stop.id, "name": end_stop.name, "coords": [est_lon, est_lat]},
             "bus_stops": [
                 {"id": start_stop.id, "name": start_stop.name},
                 {"id": end_stop.id, "name": end_stop.name},
@@ -254,11 +537,16 @@ def route_bus():
         if walk1:
             geom, dist_m, dur_s = walk1
         else:
-            # fallback straight line
-            line = LineString([(slon, slat), (sst_lon, sst_lat)])
-            geom = mapping(line)
-            dist_m = haversine(slon, slat, sst_lon, sst_lat)
-            dur_s = None
+            # try car as secondary fallback to avoid straight line
+            car_alt = _osrm_route("car", slon, slat, sst_lon, sst_lat)
+            if car_alt:
+                geom, dist_m, dur_s = car_alt
+            else:
+                # final fallback straight line
+                line = LineString([(slon, slat), (sst_lon, sst_lat)])
+                geom = mapping(line)
+                dist_m = haversine(slon, slat, sst_lon, sst_lat)
+                dur_s = None
         features.append(
             {
                 "type": "Feature",
@@ -297,7 +585,7 @@ def route_bus():
             }
         )
 
-        # Find bus stops along the bus leg (approximate: within 60m of route, ordered)
+        # Find bus stops along the bus leg (approximate: within 100m of route, ordered)
         try:
             geojson_str = json.dumps(geom)
             sql = db.text(
@@ -311,11 +599,11 @@ def route_bus():
                        ST_LineLocatePoint(r.g, p.geom) AS loc
                 FROM places p, route r
                 WHERE p.place_type = 'bus_stop'
-                  AND ST_DWithin(p.geom::geography, r.g::geography, :tol)
+                      AND ST_DWithin(p.geom::geography, r.g::geography, :tol)
                 ORDER BY loc
                 """
             )
-            rows = db.session.execute(sql, {"g": geojson_str, "tol": 60}).fetchall()
+            rows = db.session.execute(sql, {"g": geojson_str, "tol": 100}).fetchall()
             intermediate = [
                 {"id": r[0], "name": r[1], "coords": [float(r[2]), float(r[3])]}
                 for r in rows
@@ -329,10 +617,14 @@ def route_bus():
         if walk2:
             geom, dist_m, dur_s = walk2
         else:
-            line = LineString([(est_lon, est_lat), (elon, elat)])
-            geom = mapping(line)
-            dist_m = haversine(est_lon, est_lat, elon, elat)
-            dur_s = None
+            car_alt2 = _osrm_route("car", est_lon, est_lat, elon, elat)
+            if car_alt2:
+                geom, dist_m, dur_s = car_alt2
+            else:
+                line = LineString([(est_lon, est_lat), (elon, elat)])
+                geom = mapping(line)
+                dist_m = haversine(est_lon, est_lat, elon, elat)
+                dur_s = None
         features.append(
             {
                 "type": "Feature",
@@ -350,3 +642,7 @@ def route_bus():
         return jsonify({"type": "FeatureCollection", "features": features, "summary": summary})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+        
+
+
+

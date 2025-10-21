@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS places (
     name VARCHAR(100),
     place_type VARCHAR(50),
     description TEXT,
+    image_url TEXT,
     geom geometry(POINT, 4326)
 );
 
@@ -28,3 +29,14 @@ INSERT INTO places (name, place_type, description, geom) VALUES
 ('The Blue Sky Hotel', 'hotel', 'Luxury hotel in city center', ST_SetSRID(ST_MakePoint(106.9283, 47.9189), 4326)),
 ('Modern Nomads', 'restaurant', 'Popular Mongolian cuisine restaurant', ST_SetSRID(ST_MakePoint(106.9198, 47.9155), 4326)),
 ON CONFLICT DO NOTHING;
+
+-- Make sure image_url exists for existing databases
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name='places' AND column_name='image_url'
+    ) THEN
+        ALTER TABLE places ADD COLUMN IF NOT EXISTS image_url TEXT;
+    END IF;
+END $$;

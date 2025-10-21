@@ -9,4 +9,5 @@ class Place(db.Model):
     name = db.Column(db.String(100))
     place_type = db.Column(db.String(50))
     description = db.Column(db.Text, nullable=True)
+    image_url = db.Column(db.Text, nullable=True)
     geom = db.Column(Geometry(geometry_type='POINT', srid=4326))

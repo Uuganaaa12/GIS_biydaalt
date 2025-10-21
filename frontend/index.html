@@ -15,14 +15,26 @@
         <header>
             <h2>Улаанбаатар жуулчны газрын зураг</h2>
             <div class="controls">
-                <label>
-                    Ангилал:
-                    <select id="categorySelect">
-                        <option value="">Бүгд</option>
+                <div id="categoryContainer">
+                    <label style="font-weight:500;">Ангилал:</label>
+                    <div id="categoryChecks" style="display:inline-flex; gap:8px; flex-wrap:wrap; vertical-align:middle;"></div>
+                </div>
+                <div class="basemap-controls" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <label for="basemapSelect" style="font-weight:500;">layer:</label>
+                    <select id="basemapSelect">
+                        <option value="OpenStreetMap">OpenStreetMap</option>
+                        <option value="Esri World Imagery">Esri Satellite</option>
+                        <option value="OpenTopoMap">OpenTopoMap</option>
+                        <option value="Carto Light">Carto Light</option>
                     </select>
-                </label>
+                    <!-- <input id="customTileUrl" type="text" placeholder="Custom XYZ URL (https://{s}.tile.../{z}/{x}/{y}.png)" style="min-width:300px; padding:6px; border:1px solid #d1d5db; border-radius:4px;">
+                    <button id="addTileBtn">Нэмэх</button>
+                    <label for="geojsonFile" style="font-weight:500; margin-left:8px;">GeoJSON:</label>
+                    <input id="geojsonFile" type="file" accept=".geojson,application/geo+json,application/json"> -->
+                </div>
                 <button id="locateBtn">Миний байршил</button>
                 <button id="toggleBucketBtn">Очих жагсаалт (<span id="bucketCount">0</span>)</button>
+                <button id="newPlaceBtn" style="background:#10b981; color:white; border:none; border-radius:6px; padding:0 10px;">+ Шинэ газар</button>
             </div>
         </header>
         <div id="map"></div>
@@ -54,6 +66,7 @@
                 </select>
             </div>
             <button id="showBucketRouteBtn" class="action-btn" style="margin-top:12px;">Маршрут харуулах</button>
+            <div id="itinerary" style="margin-top:12px; font-size:14px; color:#111827;"></div>
             <div id="busSummary" style="margin-top:12px; font-size:14px; color:#111827;"></div>
         </div>
 

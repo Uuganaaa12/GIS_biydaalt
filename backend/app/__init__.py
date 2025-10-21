@@ -29,6 +29,13 @@ def create_app():
 
         db.create_all()
 
+        # Ensure new columns exist on existing DBs (simple, idempotent)
+        try:
+            db.session.execute(db.text("ALTER TABLE places ADD COLUMN IF NOT EXISTS image_url TEXT"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     from .routes import main_bp
     app.register_blueprint(main_bp)
 

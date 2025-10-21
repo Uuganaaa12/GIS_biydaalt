@@ -1,7 +1,9 @@
-html, body {
+html,
+body {
   height: 100%;
   margin: 0;
 }
+
 header {
   padding: 10px 12px;
   background: #0f172a;
@@ -10,19 +12,25 @@ header {
   align-items: center;
   gap: 16px;
 }
+
 header h2 {
+  
   margin: 0;
   font-size: 18px;
 }
+
 .controls {
   display: flex;
   gap: 12px;
   align-items: center;
 }
+
 #map {
   height: calc(100% - 54px);
 }
-select, button {
+
+select,
+button {
   height: 32px;
 }
 
@@ -30,19 +38,21 @@ select, button {
 .detail-panel {
   position: fixed;
   top: 0;
-  right: -400px;
+  right: -450px;
   width: 400px;
   height: 100%;
   background: white;
-  box-shadow: -2px 0 8px rgba(0,0,0,0.3);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
   transition: right 0.3s ease;
   z-index: 1001;
   padding: 20px;
   overflow-y: auto;
 }
+
 .detail-panel.open {
   right: 0;
 }
+
 .close-btn {
   position: absolute;
   top: 10px;
@@ -53,44 +63,52 @@ select, button {
   cursor: pointer;
   color: #333;
 }
+
 #detailContent h3 {
   margin-top: 0;
   color: #0f172a;
 }
+
 #detailContent p {
   margin: 8px 0;
   line-height: 1.5;
 }
+
 #detailImageContainer img {
   max-width: 100%;
   margin-top: 12px;
   border-radius: 8px;
+  margin-bottom: 12px;
 }
 
 /* Bucket List Panel (Sidebar) */
 .bucket-panel {
   position: fixed;
   top: 0;
-  left: -350px;
-  width: 350px;
+  left: -400px;
+  width: 350;
   height: 100%;
   background: white;
-  box-shadow: 2px 0 8px rgba(0,0,0,0.3);
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
   transition: left 0.3s ease;
   z-index: 1001;
   padding: 20px;
   overflow-y: auto;
 }
+
 .bucket-panel.open {
   left: 0;
 }
+
 .bucket-panel h3 {
   margin-top: 0;
   color: #0f172a;
 }
+
 #bucketList {
   margin-top: 12px;
 }
+
 .bucket-item {
   padding: 10px;
   border: 1px solid #e5e7eb;
@@ -101,10 +119,12 @@ select, button {
   align-items: center;
   background: #f9fafb;
 }
+
 .bucket-item strong {
   display: block;
   margin-bottom: 4px;
 }
+
 .bucket-item button {
   background: #ef4444;
   color: white;
@@ -114,9 +134,11 @@ select, button {
   cursor: pointer;
   font-size: 12px;
 }
+
 .bucket-item button:hover {
   background: #dc2626;
 }
+
 .action-btn {
   width: 100%;
   padding: 10px;
@@ -128,6 +150,73 @@ select, button {
   font-weight: 500;
   font-size: 14px;
 }
+
 .action-btn:hover {
   background: #2563eb;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-box {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+}
+
+.modal-box h3 {
+  margin: 0 0 16px;
+}
+
+.modal-box input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 15px;
+  box-sizing: border-box;
+}
+
+.modal-box input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.error {
+  color: #ef4444;
+  font-size: 14px;
+  margin: 8px 0;
+  min-height: 20px;
+}
+
+.modal-btns {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.modal-btns button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.modal-btns button:first-child {
+  background: #f3f4f6;
+}
+
+.modal-btns button:last-child {
+  background: #3b82f6;
+  color: white;
 }

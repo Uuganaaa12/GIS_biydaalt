@@ -7,6 +7,10 @@ services:
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/ubmap
       - OSM_DATA_DIR=/data
+      - ADMIN_SECRET=${ADMIN_SECRET}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
     depends_on:
       - db
     volumes:
@@ -48,6 +52,17 @@ services:
     command: osrm-routed --algorithm mld /data/mongolia.osrm --port 5002
     ports:
       - "5002:5002"
+    volumes:
+      - ./osrm-data:/data
+    restart: unless-stopped
+
+  osrm_foot:
+    image: ghcr.io/project-osrm/osrm-backend:latest
+    container_name: osrm_foot
+    # Foot dataset expected at /data/foot/mongolia.osrm (see OSRM-SETUP.md)
+    command: osrm-routed --algorithm mld /data/foot/mongolia.osrm --port 5003
+    ports:
+      - "5003:5003"
     volumes:
       - ./osrm-data:/data
     restart: unless-stopped

@@ -147,3 +147,9 @@ backend            0.0.0.0:5001->5001/tcp, [::]:5001->5001/tcp
 osrm               
 postgis            0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
 tourist_frontend   0.0.0.0:8080->80/tcp, [::]:8080->80/tcp
+
+
+
+CLOUDINARY_CLOUD_NAME=dvnbdfajd
+CLOUDINARY_API_KEY=534377337391846
+CLOUDINARY_API_SECRET=0PAfaxUmuxoYUbKMf8LM1iw5uYA
