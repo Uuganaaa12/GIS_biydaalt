@@ -120,3 +120,16 @@ frontend: localhost:8080    password: admin
 backend: localhost:5001     
 pgadmin: localhost:5050         email: admin@example.com       password: admin
 database: port: 5432      password: postgres
+
+
+
+
+Хэрэв та volume доторх real өгөгдлийг дамжуулахыг хүсвэл:
+
+docker exec -t postgis pg_dump -U postgres ubmap > backup.sql
+
+
+→ дараа нь backup.sql файлаа GitHub-д commit хийнэ.
+Шинэ орчинд ажиллуулахдаа:
+
+docker exec -i postgis psql -U postgres -d ubmap < backup.sql
