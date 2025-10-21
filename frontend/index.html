@@ -1,0 +1,67 @@
+<html lang="mn">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Улаанбаатар жуулчны газрын зураг</title>
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+            crossorigin=""
+        />
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <header>
+            <h2>Улаанбаатар жуулчны газрын зураг</h2>
+            <div class="controls">
+                <label>
+                    Ангилал:
+                    <select id="categorySelect">
+                        <option value="">Бүгд</option>
+                    </select>
+                </label>
+                <button id="locateBtn">Миний байршил</button>
+                <button id="toggleBucketBtn">Очих жагсаалт (<span id="bucketCount">0</span>)</button>
+            </div>
+        </header>
+        <div id="map"></div>
+        
+        <!-- Detail Sidebar -->
+        <div id="detailPanel" class="detail-panel">
+            <button id="closePanelBtn" class="close-btn">&times;</button>
+            <div id="detailContent">
+                <h3 id="detailName"></h3>
+                <p><strong>Төрөл:</strong> <span id="detailType"></span></p>
+                <p><strong>Тайлбар:</strong> <span id="detailDesc"></span></p>
+                <p><strong>Координат:</strong> <span id="detailCoords"></span></p>
+                <div id="detailImageContainer"></div>
+                <button id="addToBucketBtn" class="action-btn">Очих жагсаалтад нэмэх</button>
+            </div>
+        </div>
+
+        <!-- Bucket List Sidebar -->
+        <div id="bucketPanel" class="bucket-panel">
+            <button id="closeBucketBtn" class="close-btn">&times;</button>
+            <h3>Очих жагсаалт</h3>
+            <div id="bucketList"></div>
+            <div style="margin-top:16px;">
+                <label style="display:block; margin-bottom:8px; font-weight:500;">Тээврийн хэрэгсэл:</label>
+                <select id="routeModeSelect" style="width:100%; padding:8px; border-radius:4px; border:1px solid #d1d5db;">
+                    <option value="car">🚗 Машин</option>
+                    <option value="bus">🚌 Автобус</option>
+                    <option value="foot">🚶 Явган</option>
+                </select>
+            </div>
+            <button id="showBucketRouteBtn" class="action-btn" style="margin-top:12px;">Маршрут харуулах</button>
+            <div id="busSummary" style="margin-top:12px; font-size:14px; color:#111827;"></div>
+        </div>
+
+        <script
+            src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""
+        ></script>
+        <script src="script.js"></script>
+    </body>
+</html>

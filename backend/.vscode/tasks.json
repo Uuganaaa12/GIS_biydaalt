@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "docker compose up backend",
+			"type": "shell",
+			"command": "docker compose up --build",
+			"args": [],
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

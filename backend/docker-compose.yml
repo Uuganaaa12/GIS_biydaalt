@@ -1,0 +1,56 @@
+services:
+  backend:
+    build: .
+    container_name: backend
+    ports:
+      - "5001:5001"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/ubmap
+      - OSM_DATA_DIR=/data
+    depends_on:
+      - db
+    volumes:
+      - ./app:/app/app
+      - ./osrm-data:/data:ro
+
+  db:
+    image: postgis/postgis:15-3.3
+    platform: linux/amd64
+    container_name: postgis
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ubmap
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+
+  pgadmin:
+    image: dpage/pgadmin4:8.13
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_LISTEN_PORT: 5050
+    ports:
+      - "5050:5050"
+    depends_on:
+      - db
+    volumes:
+      - ./pgadmin-servers.json:/pgadmin4/servers.json:ro
+
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:latest
+    container_name: osrm
+    command: osrm-routed --algorithm mld /data/mongolia.osrm --port 5002
+    ports:
+      - "5002:5002"
+    volumes:
+      - ./osrm-data:/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:

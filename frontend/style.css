@@ -1,0 +1,133 @@
+html, body {
+  height: 100%;
+  margin: 0;
+}
+header {
+  padding: 10px 12px;
+  background: #0f172a;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+#map {
+  height: calc(100% - 54px);
+}
+select, button {
+  height: 32px;
+}
+
+/* Detail Panel (Sidebar) */
+.detail-panel {
+  position: fixed;
+  top: 0;
+  right: -400px;
+  width: 400px;
+  height: 100%;
+  background: white;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.3);
+  transition: right 0.3s ease;
+  z-index: 1001;
+  padding: 20px;
+  overflow-y: auto;
+}
+.detail-panel.open {
+  right: 0;
+}
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  font-size: 32px;
+  cursor: pointer;
+  color: #333;
+}
+#detailContent h3 {
+  margin-top: 0;
+  color: #0f172a;
+}
+#detailContent p {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+#detailImageContainer img {
+  max-width: 100%;
+  margin-top: 12px;
+  border-radius: 8px;
+}
+
+/* Bucket List Panel (Sidebar) */
+.bucket-panel {
+  position: fixed;
+  top: 0;
+  left: -350px;
+  width: 350px;
+  height: 100%;
+  background: white;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.3);
+  transition: left 0.3s ease;
+  z-index: 1001;
+  padding: 20px;
+  overflow-y: auto;
+}
+.bucket-panel.open {
+  left: 0;
+}
+.bucket-panel h3 {
+  margin-top: 0;
+  color: #0f172a;
+}
+#bucketList {
+  margin-top: 12px;
+}
+.bucket-item {
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f9fafb;
+}
+.bucket-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+.bucket-item button {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.bucket-item button:hover {
+  background: #dc2626;
+}
+.action-btn {
+  width: 100%;
+  padding: 10px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+}
+.action-btn:hover {
+  background: #2563eb;
+}

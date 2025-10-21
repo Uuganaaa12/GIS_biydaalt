@@ -1,0 +1,9 @@
+
+services:
+  frontend:
+    build: .
+    container_name: tourist_frontend
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/usr/share/nginx/html:ro
