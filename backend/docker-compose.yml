@@ -59,7 +59,6 @@ services:
   osrm_foot:
     image: ghcr.io/project-osrm/osrm-backend:latest
     container_name: osrm_foot
-    # Foot dataset expected at /data/foot/mongolia.osrm (see OSRM-SETUP.md)
     command: osrm-routed --algorithm mld /data/foot/mongolia.osrm --port 5003
     ports:
       - "5003:5003"

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="mn">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Газрын жагсаалт</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="style.css" />
+    <style>
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            padding: 20px 0;
+            gap: 20px;
+        }
+
+        header .controls {
+            position: absolute;
+            left: 40px;
+        }
+
+        .small {
+            color: #6b7280;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="controls">
+            <a href="/"
+                style="color:white; text-decoration: none; background-color: #10b981; padding:4px 8px; border-radius: 4%; margin:20px 0px 20px 40px;">Буцах</a>
+        </div>
+        <h2>Газрын жагсаалт</h2>
+    <button id="newPlaceBtn" style="background:#10b981; color:white; border:none; border-radius:6px; padding:0 10px;  margin: 4px 0px; position: absolute;
+            right: 40px;">+ Шинэ газар</button>
+    </header>
+        <div class="form-wrap" style="max-width:1200px; margin:12px auto; padding:20px; background:#f9fafb; border-radius:8px;">
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:20px; background:white; padding:16px; border-radius:8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                <input id="searchInput" type="text" placeholder="🔍 Нэр, тайлбараар хайх..." style="flex:1; min-width:240px; padding:12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px;"/>
+                <select id="typeFilter" style="padding:2px; border-radius:8px; border:1px solid #d1d5db; font-size:14px;">
+                    <option value="">Ачааллаж байна...</option>
+                </select>
+
+                <span id="countLabel" class="small" style="font-weight:600; color:#059669;">Нийт: 0</span>
+            </div>
+            <div id="placesCardGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:20px;">
+            </div>
+        </div>
+    <script>
+        const newBtn = document.getElementById('newPlaceBtn');
+        if (newBtn) {
+            newBtn.addEventListener('click', () => {
+                 location.href = 'new_place.html';
+            });
+        }
+    </script>
+    <script type="module" src="./js/places_list.js"></script>
+    
+</body>
+
+</html>

@@ -30,6 +30,10 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 let marker = null;
 let fillFromMap = true;
 
+// Determine edit mode
+const params = new URLSearchParams(location.search);
+const editId = params.get('id');
+
 map.on('click', async e => {
   if (!fillFromMap) return;
   const { lat, lng } = e.latlng;
@@ -110,18 +114,59 @@ async function handleSubmit() {
   form.set('lat', lat);
   if (file) form.set('image', file);
 
-  const res = await fetch(`${API_BASE}/places`, {
-    method: 'POST',
+  const url = editId ? `${API_BASE}/places/${editId}` : `${API_BASE}/places`;
+  const method = editId ? 'PUT' : 'POST';
+  const res = await fetch(url, {
+    method,
     headers: { 'X-Admin-Secret': secret },
     body: form,
   });
   const data = await res.json();
   if (res.ok) {
-    alert('Амжилттай хадгаллаа');
-    location.href = '/';
+    alert(editId ? 'Амжилттай засварлалаа' : 'Амжилттай хадгаллаа');
+    location.href = '/places.html';
   } else {
     alert('Алдаа: ' + (data.error || ''));
   }
 }
 
 document.getElementById('submitBtn').addEventListener('click', handleSubmit);
+
+// If edit mode, load existing and populate
+async function loadForEdit() {
+  if (!editId) return;
+  try {
+    const res = await fetch(`${API_BASE}/places/${editId}`);
+    if (!res.ok) return;
+    const feat = await res.json();
+    const p = feat.properties || {};
+    const coords = (feat.geometry && feat.geometry.coordinates) || [null, null];
+    document.getElementById('name').value = p.name || '';
+    document.getElementById('place_type').value = p.type || '';
+    document.getElementById('description').value = p.description || '';
+    if (coords[0] != null && coords[1] != null) {
+      document.getElementById('lon').value = coords[0];
+      document.getElementById('lat').value = coords[1];
+      const ll = L.latLng(coords[1], coords[0]);
+      map.setView(ll, 15);
+      if (marker) map.removeLayer(marker);
+      marker = L.marker(ll).addTo(map);
+    }
+    const pre = document.getElementById('preview');
+    pre.innerHTML = '';
+    if (p.image_url) {
+      const img = document.createElement('img');
+      img.style.maxWidth = '200px';
+      img.style.borderRadius = '6px';
+      img.src = p.image_url;
+      pre.appendChild(img);
+    }
+    // Change button text
+    const btn = document.getElementById('submitBtn');
+    btn.textContent = 'Засварлах';
+  } catch (e) {
+    // ignore
+  }
+}
+
+loadForEdit();

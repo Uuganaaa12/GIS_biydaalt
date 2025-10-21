@@ -21,14 +21,7 @@ BEGIN
     END IF;
 END $$;
 
--- Seed a few sample places in central Ulaanbaatar (approx coords, WGS84 lon/lat)
-INSERT INTO places (name, place_type, description, geom) VALUES
-('Sukhbaatar Square', 'photo_spot', 'Central square of Ulaanbaatar', ST_SetSRID(ST_MakePoint(106.9176, 47.9205), 4326)),
-('Gandantegchinlen Monastery', 'photo_spot', 'Famous Buddhist monastery', ST_SetSRID(ST_MakePoint(106.8953, 47.9211), 4326)),
-('State Department Store', 'shopping', 'Historic department store', ST_SetSRID(ST_MakePoint(106.9189, 47.9187), 4326)),
-('The Blue Sky Hotel', 'hotel', 'Luxury hotel in city center', ST_SetSRID(ST_MakePoint(106.9283, 47.9189), 4326)),
-('Modern Nomads', 'restaurant', 'Popular Mongolian cuisine restaurant', ST_SetSRID(ST_MakePoint(106.9198, 47.9155), 4326)),
-ON CONFLICT DO NOTHING;
+
 
 -- Make sure image_url exists for existing databases
 DO $$

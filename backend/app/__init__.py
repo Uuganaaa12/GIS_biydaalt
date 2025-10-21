@@ -2,12 +2,17 @@ import os
 import time
 from flask import Flask
 from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
 from .models import db
 
 def create_app():
     app = Flask(__name__)
-    CORS(app)
+    # Configure CORS to allow custom admin header and non-simple methods
+    CORS(
+        app,
+        resources={r"/*": {"origins": "*"}},
+        allow_headers=["Content-Type", "X-Admin-Secret"],
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    )
 
     database_url = os.getenv('DATABASE_URL', 'postgresql://postgres:postgres@db:5432/ubmap')
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
@@ -36,7 +41,8 @@ def create_app():
         except Exception:
             db.session.rollback()
 
-    from .routes import main_bp
-    app.register_blueprint(main_bp)
+    # Register modular blueprints
+    from .routes import register_blueprints
+    register_blueprints(app)
 
     return app
