@@ -67,13 +67,12 @@ export async function loadCategories() {
   cats.forEach(c => {
     const id = `cat_${c}`;
     const label = document.createElement('label');
-    label.style.display = 'inline-flex';
-    label.style.alignItems = 'center';
-    label.style.gap = '4px';
     const cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.id = id;
     cb.value = c;
+    cb.checked = true;
+    selectedCategories.add(c);
     cb.addEventListener('change', () => {
       if (cb.checked) selectedCategories.add(c);
       else selectedCategories.delete(c);
@@ -88,6 +87,13 @@ export async function loadCategories() {
 }
 
 export async function loadPlaces() {
+  // Хэрэв ямар ч ангилал сонгоогүй бол юу ч үзүүлэхгүй
+  if (selectedCategories.size === 0) {
+    placesLayer.clearLayers();
+    setAllPlaces([]);
+    return;
+  }
+
   const bounds = map.getBounds();
   const bbox = [
     bounds.getWest(),
@@ -97,9 +103,7 @@ export async function loadPlaces() {
   ].join(',');
   const url = new URL(`${API_BASE}/places`);
   url.searchParams.set('bbox', bbox);
-  if (selectedCategories.size > 0) {
-    url.searchParams.set('types', Array.from(selectedCategories).join(','));
-  }
+  url.searchParams.set('types', Array.from(selectedCategories).join(','));
 
   const res = await fetch(url);
   const geojson = await res.json();

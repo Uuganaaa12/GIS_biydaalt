@@ -58,12 +58,10 @@ export async function drawRoute(a, b) {
     const s = geo.summary;
     const el = document.getElementById('busSummary');
     if (el) {
-      const inter = (s.intermediate_stops || [])
-        .map(st => `• ${st.name}`)
-        .join('<br>');
+      const inter = formatStopsListForDisplay(s);
       el.innerHTML = `
         <div style="background:#ecfeff; border:1px solid #a5f3fc; padding:8px; border-radius:6px;">
-          <div style="font-weight:600; margin-bottom:4px;">Автобусын чиглэл (туршилт)</div>
+          <div style="font-weight:600; margin-bottom:4px;">Автобусын чиглэл</div>
           <div>Суух: <strong>${s.start_stop?.name || '-'}</strong></div>
           <div style="margin:4px 0; color:#075985;">Дайрах зогсоолууд:</div>
           <div>${inter || '—'}</div>
@@ -73,6 +71,63 @@ export async function drawRoute(a, b) {
         </div>`;
     }
   }
+}
+
+// Helper: normalize stop names and create a deduplicated intermediate-stops HTML
+function formatStopsListForDisplay(summary) {
+  if (!summary) return '';
+  const pushNormalized = (arr, name) => {
+    if (!name && name !== 0) return;
+    // Normalize separators like semicolons to a clear slash, collapse whitespace
+    let n = String(name).replace(/;/g, ' / ').replace(/\s+/g, ' ').trim();
+    if (!n) return;
+    // Skip generic placeholder names like 'Bus Stop' to avoid noisy listings
+    const compact = n.toLowerCase().replace(/\W+/g, '');
+    if (compact === 'busstop') return;
+    // Avoid consecutive duplicates
+    if (arr.length === 0 || arr[arr.length - 1] !== n) arr.push(n);
+  };
+
+  const seq = [];
+  pushNormalized(seq, summary.start_stop?.name);
+  (summary.intermediate_stops || []).forEach(st =>
+    pushNormalized(seq, st.name)
+  );
+  pushNormalized(seq, summary.end_stop?.name);
+
+  // intermediate-only: exclude first and last entries (start/end)
+  const interOnly = seq.slice(1, -1).map(n => `• ${n}`);
+  return interOnly.join('<br>');
+}
+
+// Combine multiple leg summaries into a single deduplicated intermediate-stops HTML
+function buildCombinedStopsList(summaries) {
+  if (!Array.isArray(summaries) || summaries.length === 0) return '';
+  const seq = [];
+  const pushNormalized = name => {
+    if (!name && name !== 0) return;
+    let n = String(name).replace(/;/g, ' / ').replace(/\s+/g, ' ').trim();
+    if (!n) return;
+    // Skip generic placeholder names like 'Bus Stop'
+    const compact = n.toLowerCase().replace(/\W+/g, '');
+    if (compact === 'busstop') return;
+    if (seq.length === 0 || seq[seq.length - 1] !== n) seq.push(n);
+  };
+
+  // Start with the first summary's start_stop
+  pushNormalized(summaries[0].start_stop?.name);
+
+  // Append intermediate stops from each summary in order
+  summaries.forEach(s => {
+    (s.intermediate_stops || []).forEach(st => pushNormalized(st.name));
+  });
+
+  // Finally append the last summary's end_stop
+  pushNormalized(summaries[summaries.length - 1].end_stop?.name);
+
+  // Return only the intermediate stops (exclude first and last)
+  const interOnly = seq.slice(1, -1).map(n => `• ${n}`);
+  return interOnly.join('<br>');
 }
 
 export async function showBucketRoute() {
@@ -100,7 +155,6 @@ export async function showBucketRoute() {
   let start = [userLocation.lng, userLocation.lat];
   let end = bucketList[0].coords;
   const busMode = mode === 'bus';
-  let firstLegSummary = null;
   let url = new URL(`${API_BASE}${busMode ? '/route_bus' : '/route'}`);
   url.searchParams.set('start', `${start[0]},${start[1]}`);
   url.searchParams.set('end', `${end[0]},${end[1]}`);
@@ -109,7 +163,9 @@ export async function showBucketRoute() {
   let res = await fetch(url);
   let geo = await res.json();
   routeLayer.addData(geo);
-  if (busMode && geo.summary) firstLegSummary = geo.summary;
+  // Collect per-leg summaries for a combined display
+  const legSummaries = [];
+  if (busMode && geo.summary) legSummaries.push(geo.summary);
 
   // register first leg meta (0 -> 1)
   legSteps.push({
@@ -143,6 +199,7 @@ export async function showBucketRoute() {
     res = await fetch(url);
     geo = await res.json();
     routeLayer.addData(geo);
+    if (busMode && geo.summary) legSummaries.push(geo.summary);
 
     // register leg meta (i+0 -> i+1)
     legSteps.push({
@@ -165,20 +222,19 @@ export async function showBucketRoute() {
   if (busMode) {
     const el = document.getElementById('busSummary');
     if (el) {
-      const s = firstLegSummary || geo.summary;
-      if (s) {
-        const inter = (s.intermediate_stops || [])
-          .map(st => `• ${st.name}`)
-          .join('<br>');
+      // Build combined start/intermediate/end across legs
+      if (legSummaries.length > 0) {
+        const startName = legSummaries[0].start_stop?.name || '-';
+        const endName =
+          legSummaries[legSummaries.length - 1].end_stop?.name || '-';
+        const inter = buildCombinedStopsList(legSummaries);
         el.innerHTML = `
           <div style="background:#ecfeff; border:1px solid #a5f3fc; padding:8px; border-radius:6px;">
-            <div style="font-weight:600; margin-bottom:4px;">Автобусын чиглэл (туршилт)</div>
-            <div>Суух: <strong>${s.start_stop?.name || '-'}</strong></div>
+            <div style="font-weight:600; margin-bottom:4px;">Автобусын чиглэл </div>
+            <div>Суух: <strong>${startName}</strong></div>
             <div style=\"margin:4px 0; color:#075985;\">Дайрах зогсоолууд:</div>
             <div>${inter || '—'}</div>
-            <div style="margin-top:4px;">Буух: <strong>${
-              s.end_stop?.name || '-'
-            }</strong></div>
+            <div style="margin-top:4px;">Буух: <strong>${endName}</strong></div>
             <div style="margin-top:8px; font-size:12px; color:#334155;">Эхлэх цэг: Миний байршил → 1-р газар</div>
           </div>`;
       } else {
@@ -276,5 +332,38 @@ export async function showBucketRoute() {
         } catch {}
       }
     });
+  }
+
+  // Show clear button after route is displayed
+  const clearBtn = document.getElementById('clearRouteBtn');
+  if (clearBtn) {
+    clearBtn.style.display = 'block';
+  }
+}
+
+// Clear all route layers and markers
+export function clearRoute() {
+  routeLayer.clearLayers();
+  routeMarkersLayer.clearLayers();
+
+  const elItinerary = document.getElementById('itinerary');
+  if (elItinerary) elItinerary.innerHTML = '';
+
+  const elSummary = document.getElementById('busSummary');
+  if (elSummary) elSummary.innerHTML = '';
+
+  // Clear highlight layer
+  if (highlightLayer) {
+    map.removeLayer(highlightLayer);
+    highlightLayer = null;
+  }
+
+  // Reset leg steps
+  legSteps = [];
+
+  // Hide clear button
+  const clearBtn = document.getElementById('clearRouteBtn');
+  if (clearBtn) {
+    clearBtn.style.display = 'none';
   }
 }

@@ -1,14 +1,82 @@
 import { baseLayers, currentBase, map } from './map.js';
-import { loadPlaces } from './data.js';
-import { bucketList, setUserLocation, userLocationMarker } from './state.js';
+import { loadPlaces, selectedCategories, placesLayer } from './data.js';
+import {
+  bucketList,
+  setUserLocation,
+  userLocationMarker,
+  allPlaces,
+} from './state.js';
 import { updateBucketUI } from './ui.js';
-import { showBucketRoute } from './routing.js';
+import { showBucketRoute, clearRoute } from './routing.js';
 import { API_BASE } from './config.js';
 
 let _currentBase = currentBase; // local tracking for removal
+let searchMarker = null;
 
 export function setupInteractions() {
   map.on('moveend', loadPlaces);
+
+  // Search functionality
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) {
+    let searchTimeout;
+    searchInput.addEventListener('input', e => {
+      const query = e.target.value.trim().toLowerCase();
+      if (!query) {
+        // Clear search highlighting
+        if (searchMarker) {
+          map.removeLayer(searchMarker);
+          searchMarker = null;
+        }
+        return;
+      }
+
+      // Debounce search
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(async () => {
+        await searchPlaceByName(query);
+      }, 300);
+    });
+
+    // Clear search on Enter
+    searchInput.addEventListener('keypress', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        searchInput.value = '';
+        if (searchMarker) {
+          map.removeLayer(searchMarker);
+          searchMarker = null;
+        }
+      }
+    });
+  }
+
+  // Basemap button to toggle filter panel
+  const basemapBtn = document.getElementById('basemapBtn');
+  const filterPanel = document.getElementById('filterPanel');
+
+  if (basemapBtn && filterPanel) {
+    basemapBtn.addEventListener('click', () => {
+      filterPanel.classList.toggle('open');
+    });
+  }
+
+  // Quick action buttons
+  document.getElementById('restaurantsBtn')?.addEventListener('click', () => {
+    filterByCategory('restaurant');
+  });
+
+  document.getElementById('hotelsBtn')?.addEventListener('click', () => {
+    filterByCategory('hotel');
+  });
+
+  document.getElementById('museumsBtn')?.addEventListener('click', () => {
+    filterByCategory('museum');
+  });
+
+  document.getElementById('photoSpotsBtn')?.addEventListener('click', () => {
+    filterByCategory('photo_spot');
+  });
 
   const basemapSelect = document.getElementById('basemapSelect');
   if (basemapSelect) {
@@ -70,6 +138,10 @@ export function setupInteractions() {
   document
     .getElementById('showBucketRouteBtn')
     .addEventListener('click', showBucketRoute);
+  
+  document
+    .getElementById('clearRouteBtn')
+    .addEventListener('click', clearRoute);
 
   // Delegate remove button clicks in bucket list
   document.getElementById('bucketList').addEventListener('click', e => {
@@ -85,14 +157,28 @@ export function setupInteractions() {
   });
 
   // New Place: admin password modal
-  document
-    .getElementById('placesListButton')
-    .addEventListener('click', showPasswordModal);
+  const placesListButton = document.getElementById('placesListButton');
+  if (placesListButton) {
+    placesListButton.addEventListener('click', showPasswordModal);
+  }
+}
 
-  //   const placesListButton = document.getElementById('placesListButton');
-  //   if (placesListButton) {
-  //     placesListButton.addEventListener('click', showPasswordModal);
-  //   }
+function filterByCategory(category) {
+  // Clear all selections
+  selectedCategories.clear();
+  // Add only the selected category
+  selectedCategories.add(category);
+  // Update checkboxes
+  const checkboxes = document.querySelectorAll(
+    '#categoryChecks input[type="checkbox"]'
+  );
+  checkboxes.forEach(cb => {
+    cb.checked = cb.value === category;
+  });
+  // Reload places with new filter
+  loadPlaces();
+  // Close filter panel if open
+  document.getElementById('filterPanel')?.classList.remove('open');
 }
 
 export function showPasswordModal() {
@@ -138,5 +224,57 @@ export async function checkPassword() {
     }
   } catch (e) {
     error.textContent = 'Холболтын алдаа';
+  }
+}
+
+// Search place by name from backend (search all places, not just visible ones)
+async function searchPlaceByName(query) {
+  try {
+    const url = new URL(`${API_BASE}/places`);
+    url.searchParams.set('q', query);
+
+    const response = await fetch(url);
+    const geojson = await response.json();
+    const features = geojson.features || [];
+
+    // Find first non-bus_stop match
+    const found = features.find(place => {
+      const type = place.properties?.type || '';
+      return type !== 'bus_stop';
+    });
+
+    if (found) {
+      const coords = found.geometry.coordinates;
+      const lat = coords[1];
+      const lon = coords[0];
+
+      // Remove previous search marker
+      if (searchMarker) {
+        map.removeLayer(searchMarker);
+      }
+
+      // Add highlight marker
+      searchMarker = L.marker([lat, lon], {
+        icon: L.divIcon({
+          className: 'search-marker',
+          html: '<div style="background-color: #ea4335; width: 36px; height: 36px; border-radius: 50%; border: 4px solid white; box-shadow: 0 0 0 2px #ea4335, 0 4px 12px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; font-size: 20px; animation: pulse 1.5s infinite;">📍</div>',
+          iconSize: [36, 36],
+          iconAnchor: [18, 18],
+        }),
+      }).addTo(map);
+
+      searchMarker
+        .bindPopup(
+          `<b>${found.properties.name}</b><br>${found.properties.type}`
+        )
+        .openPopup();
+
+      // Fly to location
+      map.flyTo([lat, lon], 17, {
+        duration: 1.5,
+      });
+    }
+  } catch (error) {
+    console.error('Search error:', error);
   }
 }
