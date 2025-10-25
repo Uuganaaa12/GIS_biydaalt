@@ -3,3 +3,5 @@ backend/osrm-data/mongolia.osm.pbf
 # Local environment files (do not commit secrets)
 backend/.env
 .env
+*.pyc
+__pycache__/

@@ -189,7 +189,7 @@ export function showDetail(placeId) {
 
   document.getElementById('detailPanel').classList.add('open');
 }
-
+}
 // -----------------------------
 // Очих жагсаалтанд нэмэх
 // -----------------------------
