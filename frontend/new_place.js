@@ -91,6 +91,32 @@ imgInput.addEventListener('change', () => {
   }
 });
 
+// Gallery images preview
+const galleryInput = document.getElementById('galleryImages');
+galleryInput.addEventListener('change', () => {
+  const pre = document.getElementById('galleryPreview');
+  pre.innerHTML = '';
+  const files = galleryInput.files;
+  if (files && files.length > 0) {
+    Array.from(files).forEach(f => {
+      const img = document.createElement('img');
+      img.style.width = '100px';
+      img.style.height = '80px';
+      img.style.objectFit = 'cover';
+      img.style.borderRadius = '6px';
+      img.style.border = '2px solid #e5e7eb';
+      img.src = URL.createObjectURL(f);
+      pre.appendChild(img);
+    });
+    const info = document.createElement('div');
+    info.style.width = '100%';
+    info.style.fontSize = '14px';
+    info.style.color = '#6b7280';
+    info.textContent = `${files.length} зураг сонгогдсон`;
+    pre.appendChild(info);
+  }
+});
+
 // Submit
 async function handleSubmit() {
   const secret = sessionStorage.getItem('adminSecret') || '';
@@ -100,33 +126,109 @@ async function handleSubmit() {
   const lon = document.getElementById('lon').value.trim();
   const lat = document.getElementById('lat').value.trim();
   const file = imgInput.files?.[0];
+  const galleryFiles = galleryInput.files;
 
   if (!name || !place_type || !lon || !lat) {
     alert('Нэр, төрөл, координатыг бөглөнө үү');
     return;
   }
 
-  const form = new FormData();
-  form.set('name', name);
-  form.set('place_type', place_type);
-  form.set('description', description);
-  form.set('lon', lon);
-  form.set('lat', lat);
-  if (file) form.set('image', file);
+  const btn = document.getElementById('submitBtn');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Хадгалж байна...';
 
-  const url = editId ? `${API_BASE}/places/${editId}` : `${API_BASE}/places`;
-  const method = editId ? 'PUT' : 'POST';
-  const res = await fetch(url, {
-    method,
-    headers: { 'X-Admin-Secret': secret },
-    body: form,
-  });
-  const data = await res.json();
-  if (res.ok) {
-    alert(editId ? 'Амжилттай засварлалаа' : 'Амжилттай хадгаллаа');
+  try {
+    // Step 1: Create/update the place
+    const form = new FormData();
+    form.set('name', name);
+    form.set('place_type', place_type);
+    form.set('description', description);
+    form.set('lon', lon);
+    form.set('lat', lat);
+    if (file) form.set('image', file);
+    
+    // Add social media and contact info
+    const facebook_url = document.getElementById('facebook_url').value.trim();
+    const instagram_url = document.getElementById('instagram_url').value.trim();
+    const website_url = document.getElementById('website_url').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    
+    if (facebook_url) form.set('facebook_url', facebook_url);
+    if (instagram_url) form.set('instagram_url', instagram_url);
+    if (website_url) form.set('website_url', website_url);
+    if (phone) form.set('phone', phone);
+
+    const url = editId ? `${API_BASE}/places/${editId}` : `${API_BASE}/places`;
+    const method = editId ? 'PUT' : 'POST';
+    const res = await fetch(url, {
+      method,
+      headers: { 'X-Admin-Secret': secret },
+      body: form,
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || 'Газар хадгалахад алдаа гарлаа');
+    }
+
+    // Get place ID from response
+    const placeId = data.properties?.id || data.id || editId;
+    console.log('Created/Updated place ID:', placeId);
+    console.log('Response data:', data);
+    console.log('Gallery files count:', galleryFiles ? galleryFiles.length : 0);
+
+    // Step 2: Upload gallery images if any
+    if (galleryFiles && galleryFiles.length > 0 && placeId) {
+      console.log('Starting gallery upload for place:', placeId);
+      btn.textContent = 'Gallery зураг оруулж байна...';
+
+      const galleryForm = new FormData();
+      Array.from(galleryFiles).forEach(f => {
+        galleryForm.append('images', f);
+        console.log('Adding image to form:', f.name);
+      });
+
+      console.log('Uploading to:', `${API_BASE}/places/${placeId}/images`);
+      const galleryRes = await fetch(`${API_BASE}/places/${placeId}/images`, {
+        method: 'POST',
+        headers: { 'X-Admin-Secret': secret },
+        body: galleryForm,
+      });
+
+      console.log('Gallery upload response status:', galleryRes.status);
+      if (!galleryRes.ok) {
+        const galleryError = await galleryRes.json();
+        console.error('Gallery upload failed:', galleryError);
+        alert(
+          `Газар амжилттай хадгаллаа, гэвч gallery зураг оруулахад алдаа: ${
+            galleryError.error || 'unknown'
+          }`
+        );
+      } else {
+        const galleryResult = await galleryRes.json();
+        console.log('Gallery upload success:', galleryResult);
+        alert(
+          `Амжилттай! ${
+            galleryResult.uploaded_count || 0
+          } gallery зураг нэмэгдлээ.`
+        );
+      }
+    } else {
+      console.log('Skipping gallery upload:', {
+        hasFiles: !!galleryFiles,
+        fileCount: galleryFiles?.length,
+        placeId,
+      });
+      alert(editId ? 'Амжилттай засварлалаа' : 'Амжилттай хадгаллаа');
+    }
+
     location.href = '/places.html';
-  } else {
-    alert('Алдаа: ' + (data.error || ''));
+  } catch (error) {
+    console.error('Submit error:', error);
+    alert('Алдаа: ' + error.message);
+    btn.disabled = false;
+    btn.textContent = originalText;
   }
 }
 
@@ -144,6 +246,10 @@ async function loadForEdit() {
     document.getElementById('name').value = p.name || '';
     document.getElementById('place_type').value = p.type || '';
     document.getElementById('description').value = p.description || '';
+    document.getElementById('facebook_url').value = p.facebook_url || '';
+    document.getElementById('instagram_url').value = p.instagram_url || '';
+    document.getElementById('website_url').value = p.website_url || '';
+    document.getElementById('phone').value = p.phone || '';
     if (coords[0] != null && coords[1] != null) {
       document.getElementById('lon').value = coords[0];
       document.getElementById('lat').value = coords[1];

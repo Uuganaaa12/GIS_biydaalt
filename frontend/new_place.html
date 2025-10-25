@@ -25,6 +25,9 @@ header .controls {
   position: absolute;
   left: 40px;
 }
+      header h2{
+        color: black;
+      }
       .form-wrap { max-width: 900px; margin: 12px auto; padding: 12px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; }
       .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
       .row label { display: block; font-weight: 600; margin-bottom: 4px; }
@@ -73,10 +76,32 @@ header .controls {
           <input id="lat" type="number" step="any" placeholder="47.9205" />
         </div>
         <div style="grid-column: span 2;">
-          <label>Зураг</label>
+          <label>Үндсэн зураг (Cover)</label>
           <input id="image" type="file" accept="image/*" />
-          <div class="small">Зургаа оруулахгүй бол image_url талбар хоосон үлдэнэ.</div>
+          <div class="small">Газрын үндсэн зураг</div>
           <div id="preview" class="preview"></div>
+        </div>
+        <div style="grid-column: span 2;">
+          <label>Gallery зургууд (Олон зураг)</label>
+          <input id="galleryImages" type="file" accept="image/*" multiple />
+          <div class="small">Нэг дор олон зураг сонгож болно (Ctrl/Cmd + сонгох)</div>
+          <div id="galleryPreview" class="preview" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+        </div>
+        <div>
+          <label>Facebook</label>
+          <input id="facebook_url" type="url" placeholder="https://facebook.com/..." />
+        </div>
+        <div>
+          <label>Instagram</label>
+          <input id="instagram_url" type="url" placeholder="https://instagram.com/..." />
+        </div>
+        <div>
+          <label>Вэбсайт</label>
+          <input id="website_url" type="url" placeholder="https://..." />
+        </div>
+        <div>
+          <label>Утас</label>
+          <input id="phone" type="tel" placeholder="+976 ..." />
         </div>
       </div>
       <div id="pickMap"></div>
