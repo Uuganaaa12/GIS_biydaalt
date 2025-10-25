@@ -28,37 +28,80 @@ export async function showDirectRouteToPlace(coords) {
     alert('Эхлээд "Миний байршил" товчийг дарж байршлаа тогтооно уу');
     return;
   }
-  
+
   // Clear existing route
   clearRoute();
-  
+
   // coords is [lon, lat]
   const destination = { lng: coords[0], lat: coords[1] };
-  
+
   try {
-    await drawRoute(userLocation, destination);
-    
+    // Get the selected routing mode
+    const modeSelect = document.getElementById('routeModeSelect');
+    const mode = modeSelect ? modeSelect.value : 'car';
+    const busMode = mode === 'bus';
+
+    // Fetch route from API
+    const start = [userLocation.lng, userLocation.lat];
+    const end = [coords[0], coords[1]];
+    const url = new URL(`${API_BASE}${busMode ? '/route_bus' : '/route'}`);
+    url.searchParams.set('start', `${start[0]},${start[1]}`);
+    url.searchParams.set('end', `${end[0]},${end[1]}`);
+    if (!busMode) url.searchParams.set('mode', mode);
+
+    const routeGeo = await safeFetch(url);
+    routeLayer.addData(routeGeo);
+
     // Add markers for start and end
     routeMarkersLayer.clearLayers();
-    
+
     // Start marker (user location)
     L.marker([userLocation.lat, userLocation.lng], {
-      icon: createNumberedIcon('📍', '#3b82f6')
-    }).addTo(routeMarkersLayer)
+      icon: createNumberedIcon('📍', '#3b82f6'),
+    })
+      .addTo(routeMarkersLayer)
       .bindPopup('<b>Эхлэх цэг</b>: Миний байршил');
-    
+
     // End marker (destination)
     L.marker([destination.lat, destination.lng], {
-      icon: createNumberedIcon('🎯', '#ef4444')
-    }).addTo(routeMarkersLayer)
+      icon: createNumberedIcon('🎯', '#ef4444'),
+    })
+      .addTo(routeMarkersLayer)
       .bindPopup('<b>Очих цэг</b>');
-    
+
     // Fit map to show the route
     const bounds = L.latLngBounds([
       [userLocation.lat, userLocation.lng],
-      [destination.lat, destination.lng]
+      [destination.lat, destination.lng],
     ]);
     map.fitBounds(bounds, { padding: [50, 50] });
+
+    // Show bus summary if in bus mode
+    if (busMode && routeGeo.summary) {
+      const elSummary = document.getElementById('busSummary');
+      if (elSummary) {
+        const stopsHtml = formatStopsListForDisplay(routeGeo.summary);
+        const startStop = routeGeo.summary.start_stop?.name || '-';
+        const endStop = routeGeo.summary.end_stop?.name || '-';
+        elSummary.innerHTML = `
+          <div style="background:#ecfeff; border:1px solid #a5f3fc; padding:8px; border-radius:6px;">
+            <div style="font-weight:600; margin-bottom:8px;">Автобусын чиглэл</div>
+            <div style="margin-bottom:6px;">
+              <div>Суух зогсоол: <strong>${startStop}</strong></div>
+              <div>Буух зогсоол: <strong>${endStop}</strong></div>
+            </div>
+            ${
+              stopsHtml
+                ? `<div style="margin:6px 0; color:#075985; font-weight:500;">Дайрах зогсоолууд:</div><div>${stopsHtml}</div>`
+                : ''
+            }
+          </div>`;
+      }
+    }
+
+    // Show clear button
+    const clearBtn = document.getElementById('clearRouteBtn');
+    if (clearBtn) clearBtn.style.display = 'block';
   } catch (error) {
     console.error('Route error:', error);
     alert('Замын мэдээлэл татахад алдаа гарлаа');
@@ -92,7 +135,10 @@ function formatStopsListForDisplay(summary) {
   pushNormalized(seq, summary.start_stop?.name);
   (summary.intermediate_stops || []).forEach(st => pushNormalized(st.name));
   pushNormalized(seq, summary.end_stop?.name);
-  return seq.slice(1, -1).map(n => `• ${n}`).join('<br>');
+  return seq
+    .slice(1, -1)
+    .map(n => `• ${n}`)
+    .join('<br>');
 }
 
 // 🧩 Combine bus summaries into one numbered list
@@ -110,13 +156,21 @@ function buildCombinedStopsListNumbered(summaries) {
     if (seq.length === 0 || seq[seq.length - 1] !== n) seq.push(n);
   };
   pushNormalized(summaries[0].start_stop?.name);
-  summaries.forEach(s => (s.intermediate_stops || []).forEach(st => pushNormalized(st.name)));
+  summaries.forEach(s =>
+    (s.intermediate_stops || []).forEach(st => pushNormalized(st.name))
+  );
   pushNormalized(summaries[summaries.length - 1].end_stop?.name);
   const middleStops = seq.slice(1, -1);
   const html = middleStops.length
-    ? '<ol style="margin:0; padding-left:20px;">' + middleStops.map(s => `<li>${s}</li>`).join('') + '</ol>'
+    ? '<ol style="margin:0; padding-left:20px;">' +
+      middleStops.map(s => `<li>${s}</li>`).join('') +
+      '</ol>'
     : '—';
-  return { startStop: seq[0] || '-', endStop: seq[seq.length - 1] || '-', middleHtml: html };
+  return {
+    startStop: seq[0] || '-',
+    endStop: seq[seq.length - 1] || '-',
+    middleHtml: html,
+  };
 }
 
 // 🧭 Show multi-destination route

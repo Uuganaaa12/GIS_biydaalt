@@ -30,7 +30,7 @@ function bindPopupHandlers(feature, layer) {
         p.id
       }" style="padding:4px 8px; cursor:pointer; background:${
     inBucket ? '#9ca3af' : '#3b82f6'
-  }; color:white; border:none; border-radius:4px;">
+  };  color:white; border:none; border-radius:4px;">
         ${inBucket ? 'Жагсаалтад байна ✓' : '+ Жагсаалт'}
       </button>
       <button class="direction-btn" data-id="${
@@ -39,16 +39,6 @@ function bindPopupHandlers(feature, layer) {
         🧭 Чиглэл
       </button>
     </div>
-    <button class="detail-btn" data-id="${p.id ?? ''}" 
-      style="margin-top:8px; padding:4px 8px; cursor:pointer;">
-      Дэлгэрэнгүй үзэх
-    </button>
-    <button class="add-bucket-btn" data-id="${p.id ?? ''}"
-      style="margin-top:8px; padding:4px 8px; cursor:pointer; background:${
-        inBucket ? '#9ca3af' : '#3b82f6'
-      }; color:white; border:none; border-radius:4px;">
-      ${inBucket ? 'Жагсаалтад байна ✓' : '+ Жагсаалт'}
-    </button>
   `;
 
   layer.bindPopup(popupContent);
@@ -61,7 +51,9 @@ function bindPopupHandlers(feature, layer) {
     const addBtn = container.querySelector('.add-bucket-btn');
     addBtn.addEventListener('click', () => addToBucketQuick(p.id));
     const dirBtn = container.querySelector('.direction-btn');
-    dirBtn.addEventListener('click', () => getDirectionToPlace(p.id, feature.geometry.coordinates));
+    dirBtn.addEventListener('click', () =>
+      getDirectionToPlace(p.id, feature.geometry.coordinates)
+    );
 
     if (detailBtn) {
       detailBtn.addEventListener('click', () => showDetail(p.id));
@@ -93,7 +85,9 @@ export function showDetail(placeId) {
       ? 'Автобусны буудал'
       : p.description || 'Тайлбар байхгүй';
 
-  document.getElementById('detailCoords').textContent = `${coords[1]?.toFixed(5)}, ${coords[0]?.toFixed(5)}`;
+  document.getElementById('detailCoords').textContent = `${coords[1]?.toFixed(
+    5
+  )}, ${coords[0]?.toFixed(5)}`;
 
   const imgContainer = document.getElementById('detailImageContainer');
   imgContainer.innerHTML = '';
@@ -176,19 +170,19 @@ export function showDetail(placeId) {
   const addBtn = document.getElementById('addToBucketBtn');
 
   if (bucketList.some(item => item.id === placeId)) {
-  if (bucketList.some(item => item && item.id === placeId)) {
-    addBtn.textContent = 'Жагсаалтад байна ✓';
-    addBtn.disabled = true;
-    addBtn.style.background = '#9ca3af';
-  } else {
-    addBtn.textContent = 'Очих жагсаалтад нэмэх';
-    addBtn.disabled = false;
-    addBtn.style.background = '#3b82f6';
-  }
-  addBtn.dataset.placeId = String(placeId);
+    if (bucketList.some(item => item && item.id === placeId)) {
+      addBtn.textContent = 'Жагсаалтад байна ✓';
+      addBtn.disabled = true;
+      addBtn.style.background = '#9ca3af';
+    } else {
+      addBtn.textContent = 'Очих жагсаалтад нэмэх';
+      addBtn.disabled = false;
+      addBtn.style.background = '#3b82f6';
+    }
+    addBtn.dataset.placeId = String(placeId);
 
-  document.getElementById('detailPanel').classList.add('open');
-}
+    document.getElementById('detailPanel').classList.add('open');
+  }
 }
 // -----------------------------
 // Очих жагсаалтанд нэмэх
