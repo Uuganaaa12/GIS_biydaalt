@@ -9,5 +9,21 @@ class Place(db.Model):
     name = db.Column(db.String(100))
     place_type = db.Column(db.String(50))
     description = db.Column(db.Text, nullable=True)
-    image_url = db.Column(db.Text, nullable=True)
+    image_url = db.Column(db.Text, nullable=True)  # Main/cover image
+    facebook_url = db.Column(db.Text, nullable=True)
+    instagram_url = db.Column(db.Text, nullable=True)
+    website_url = db.Column(db.Text, nullable=True)
+    phone = db.Column(db.String(20), nullable=True)
     geom = db.Column(Geometry(geometry_type='POINT', srid=4326))
+    
+    # Relationship to gallery images
+    images = db.relationship('PlaceImage', backref='place', lazy=True, cascade='all, delete-orphan', order_by='PlaceImage.display_order')
+
+class PlaceImage(db.Model):
+    __tablename__ = "place_images"
+    id = db.Column(db.Integer, primary_key=True)
+    place_id = db.Column(db.Integer, db.ForeignKey('places.id', ondelete='CASCADE'), nullable=False)
+    image_url = db.Column(db.Text, nullable=False)
+    display_order = db.Column(db.Integer, default=0)
+    uploaded_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+

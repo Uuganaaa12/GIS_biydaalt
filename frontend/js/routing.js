@@ -22,6 +22,49 @@ export const routeMarkersLayer = L.layerGroup().addTo(map);
 let highlightLayer = null;
 let legSteps = [];
 
+// Show direct route from user location to a specific place
+export async function showDirectRouteToPlace(coords) {
+  if (!userLocation) {
+    alert('Эхлээд "Миний байршил" товчийг дарж байршлаа тогтооно уу');
+    return;
+  }
+  
+  // Clear existing route
+  clearRoute();
+  
+  // coords is [lon, lat]
+  const destination = { lng: coords[0], lat: coords[1] };
+  
+  try {
+    await drawRoute(userLocation, destination);
+    
+    // Add markers for start and end
+    routeMarkersLayer.clearLayers();
+    
+    // Start marker (user location)
+    L.marker([userLocation.lat, userLocation.lng], {
+      icon: createNumberedIcon('📍', '#3b82f6')
+    }).addTo(routeMarkersLayer)
+      .bindPopup('<b>Эхлэх цэг</b>: Миний байршил');
+    
+    // End marker (destination)
+    L.marker([destination.lat, destination.lng], {
+      icon: createNumberedIcon('🎯', '#ef4444')
+    }).addTo(routeMarkersLayer)
+      .bindPopup('<b>Очих цэг</b>');
+    
+    // Fit map to show the route
+    const bounds = L.latLngBounds([
+      [userLocation.lat, userLocation.lng],
+      [destination.lat, destination.lng]
+    ]);
+    map.fitBounds(bounds, { padding: [50, 50] });
+  } catch (error) {
+    console.error('Route error:', error);
+    alert('Замын мэдээлэл татахад алдаа гарлаа');
+  }
+}
+
 // 🧩 Helper: Safe fetch to avoid crashes when backend missing
 async function safeFetch(url) {
   try {
