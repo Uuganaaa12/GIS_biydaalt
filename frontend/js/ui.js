@@ -20,13 +20,11 @@ export function updateBucketUI() {
   countEl.textContent = bucketList.length;
   container.innerHTML = '';
 
-  // --- Хоосон жагсаалт ---
   if (bucketList.length === 0 && !userLocation) {
     container.innerHTML = '<p style="color:#9ca3af;">Одоогоор хоосон байна</p>';
     return;
   }
 
-  // --- Миний байршил ---
   if (userLocation) {
     const myLoc = document.createElement('div');
     myLoc.className = 'bucket-item';
@@ -40,9 +38,8 @@ export function updateBucketUI() {
     container.appendChild(myLoc);
   }
 
-  // --- Очих газрууд ---
   bucketList.forEach(item => {
-    if (!item || !item.id) return; // хамгаалалт
+    if (!item || !item.id) return; 
     const div = document.createElement('div');
     div.className = 'bucket-item';
     div.dataset.id = item.id;
@@ -56,7 +53,6 @@ export function updateBucketUI() {
     container.appendChild(div);
   });
 
-  // --- Sortable-г дахин идэвхжүүлэх ---
   if (window.Sortable) {
     if (sortableInstance) {
       try {
@@ -74,7 +70,7 @@ export function updateBucketUI() {
         const newOrder = [];
         container.querySelectorAll('.bucket-item[data-id]').forEach(div => {
           const idStr = div.dataset.id;
-          if (!idStr) return; // хамгаалалт
+          if (!idStr) return; 
           const id = Number(idStr);
           const found = bucketList.find(p => p && p.id === id);
           if (found) newOrder.push(found);

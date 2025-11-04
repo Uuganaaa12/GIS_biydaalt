@@ -6,7 +6,6 @@ from .models import db
 
 def create_app():
     app = Flask(__name__)
-    # Configure CORS to allow custom admin header and non-simple methods
     CORS(
         app,
         resources={r"/*": {"origins": "*"}},
@@ -19,7 +18,6 @@ def create_app():
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     db.init_app(app)
 
-    # Wait for DB to be ready (simple retry loop)
     with app.app_context():
         attempts = 0
         while True:
@@ -33,15 +31,12 @@ def create_app():
                 time.sleep(1)
 
         db.create_all()
-
-        # Ensure new columns exist on existing DBs (simple, idempotent)
         try:
             db.session.execute(db.text("ALTER TABLE places ADD COLUMN IF NOT EXISTS image_url TEXT"))
             db.session.commit()
         except Exception:
             db.session.rollback()
 
-    # Register modular blueprints
     from .routes import register_blueprints
     register_blueprints(app)
 

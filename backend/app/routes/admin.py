@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request
 admin_bp = Blueprint("admin", __name__)
 
 
-@admin_bp.route("/admin_check", methods=["POST"])  # simple header-based secret check
+@admin_bp.route("/admin_check", methods=["POST"]) 
 def admin_check():
     secret = request.headers.get("X-Admin-Secret")
     expected = os.getenv("ADMIN_SECRET")

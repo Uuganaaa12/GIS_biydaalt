@@ -300,7 +300,6 @@ def update_place(place_id: int):
                     except Exception as e:
                         return jsonify({"error": f"image upload failed: {e}"}), 400
 
-        # Apply partial updates
         if name is not None:
             place.name = name
         if place_type is not None:
@@ -317,7 +316,6 @@ def update_place(place_id: int):
             place.website_url = website_url
         if phone is not None:
             place.phone = phone
-        # Update geometry if lon/lat provided (either both or ignore)
         if lon is not None and lat is not None:
             try:
                 flon = float(lon)

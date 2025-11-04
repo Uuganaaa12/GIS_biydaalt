@@ -30,3 +30,19 @@ export function setUserLocation(latlng, marker) {
   userLocation = latlng;
   userLocationMarker = marker || userLocationMarker;
 }
+
+// Last direct destination (for quick re-route on mode toggle)
+export let lastDirectDestination = null; // [lon, lat]
+export function setLastDirectDestination(coords) {
+  if (Array.isArray(coords) && coords.length === 2) {
+    lastDirectDestination = coords;
+  }
+}
+
+// Track which route is currently active: 'none' | 'direct' | 'bucket'
+export let currentRouteType = 'none';
+export function setCurrentRouteType(type) {
+  if (type === 'direct' || type === 'bucket' || type === 'none') {
+    currentRouteType = type;
+  }
+}

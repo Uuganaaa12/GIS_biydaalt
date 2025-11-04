@@ -71,8 +71,11 @@ export async function loadCategories() {
     cb.type = 'checkbox';
     cb.id = id;
     cb.value = c;
-    cb.checked = true;
-    selectedCategories.add(c);
+    if (cb.id !== 'cat_bus_stop') {
+      cb.checked = true;
+      selectedCategories.add(c);
+    }
+
     cb.addEventListener('change', () => {
       if (cb.checked) selectedCategories.add(c);
       else selectedCategories.delete(c);

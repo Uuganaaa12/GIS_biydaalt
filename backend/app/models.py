@@ -9,14 +9,13 @@ class Place(db.Model):
     name = db.Column(db.String(100))
     place_type = db.Column(db.String(50))
     description = db.Column(db.Text, nullable=True)
-    image_url = db.Column(db.Text, nullable=True)  # Main/cover image
+    image_url = db.Column(db.Text, nullable=True)  
     facebook_url = db.Column(db.Text, nullable=True)
     instagram_url = db.Column(db.Text, nullable=True)
     website_url = db.Column(db.Text, nullable=True)
     phone = db.Column(db.String(20), nullable=True)
     geom = db.Column(Geometry(geometry_type='POINT', srid=4326))
     
-    # Relationship to gallery images
     images = db.relationship('PlaceImage', backref='place', lazy=True, cascade='all, delete-orphan', order_by='PlaceImage.display_order')
 
 class PlaceImage(db.Model):

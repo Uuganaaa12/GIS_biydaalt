@@ -7,10 +7,20 @@ import {
   allPlaces,
 } from './state.js';
 import { updateBucketUI } from './ui.js';
-import { showBucketRoute, clearRoute } from './routing.js';
+import {
+  showBucketRoute,
+  clearRoute,
+  showDirectRouteToPlace,
+  updateModeDurations,
+} from './routing.js';
 import { API_BASE } from './config.js';
+import {
+  bucketList as _bucketList,
+  lastDirectDestination,
+  currentRouteType,
+} from './state.js';
 
-let _currentBase = currentBase; // local tracking for removal
+let _currentBase = currentBase;
 let searchMarker = null;
 
 export function setupInteractions() {
@@ -129,19 +139,71 @@ export function setupInteractions() {
     alert('Байршил олдсонгүй: ' + e.message);
   });
 
-  document.getElementById('toggleBucketBtn').addEventListener('click', () => {
-    document.getElementById('bucketPanel').classList.toggle('open');
+  const toggleBtn = document.getElementById('toggleBucketBtn');
+  const bucketPanel = document.getElementById('bucketPanel');
+  toggleBtn.addEventListener('click', () => {
+    bucketPanel.classList.toggle('open');
+    // Move the side tab depending on state and flip arrow
+    toggleBtn.classList.toggle('open', bucketPanel.classList.contains('open'));
+    const arrow = toggleBtn.querySelector('.arrow');
+    if (arrow) {
+      arrow.textContent = bucketPanel.classList.contains('open') ? '‹' : '›';
+    }
   });
-  document.getElementById('closeBucketBtn').addEventListener('click', () => {
-    document.getElementById('bucketPanel').classList.remove('open');
-  });
+  // document.getElementById('closeBucketBtn').addEventListener('click', () => {
+  //   bucketPanel.classList.remove('open');
+  //   toggleBtn.classList.remove('open');
+  //   const arrow = toggleBtn.querySelector('.arrow');
+  //   if (arrow) arrow.textContent = '›';
+  // });
   document
     .getElementById('showBucketRouteBtn')
     .addEventListener('click', showBucketRoute);
-  
+
   document
     .getElementById('clearRouteBtn')
     .addEventListener('click', clearRoute);
+
+  // Mode toggle (car/bus/foot) buttons
+  const modeToggle = document.getElementById('modeToggle');
+  const hiddenMode = document.getElementById('routeModeSelect');
+  if (modeToggle && hiddenMode) {
+    modeToggle.addEventListener('click', e => {
+      const btn = e.target.closest('.mode-btn');
+      if (!btn) return;
+      const mode = btn.dataset.mode;
+      // Update active state
+      modeToggle.querySelectorAll('.mode-btn').forEach(b => {
+        b.classList.toggle('active', b === btn);
+        b.setAttribute('aria-selected', b === btn ? 'true' : 'false');
+      });
+      // Keep compatibility with existing code
+      hiddenMode.value = mode;
+
+      // Immediately recompute route
+      try {
+        if (
+          currentRouteType === 'direct' &&
+          Array.isArray(lastDirectDestination)
+        ) {
+          showDirectRouteToPlace(lastDirectDestination);
+        } else if (
+          currentRouteType === 'bucket' &&
+          Array.isArray(_bucketList) &&
+          _bucketList.length > 0
+        ) {
+          showBucketRoute();
+        } else if (Array.isArray(_bucketList) && _bucketList.length > 0) {
+          showBucketRoute();
+        } else if (Array.isArray(lastDirectDestination)) {
+          showDirectRouteToPlace(lastDirectDestination);
+        }
+        updateModeDurations();
+      } catch (err) {
+        console.warn('Mode toggle re-route failed:', err);
+      }
+    });
+  }
 
   // Delegate remove button clicks in bucket list
   document.getElementById('bucketList').addEventListener('click', e => {

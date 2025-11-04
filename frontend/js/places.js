@@ -72,6 +72,7 @@ placesLayer.options.onEachFeature = bindPopupHandlers;
 // -----------------------------
 export function showDetail(placeId) {
   if (!placeId) return;
+
   const feature = allPlaces.find(f => f?.properties?.id === placeId);
   if (!feature || !feature.properties || !feature.geometry) return;
 
@@ -168,9 +169,10 @@ export function showDetail(placeId) {
   }
 
   const addBtn = document.getElementById('addToBucketBtn');
-
-  if (bucketList.some(item => item.id === placeId)) {
-    if (bucketList.some(item => item && item.id === placeId)) {
+  // Always update the Add button state, regardless of bucket membership
+  const inBucket = bucketList.some(item => item && item.id === placeId);
+  if (addBtn) {
+    if (inBucket) {
       addBtn.textContent = 'Жагсаалтад байна ✓';
       addBtn.disabled = true;
       addBtn.style.background = '#9ca3af';
@@ -180,9 +182,10 @@ export function showDetail(placeId) {
       addBtn.style.background = '#3b82f6';
     }
     addBtn.dataset.placeId = String(placeId);
-
-    document.getElementById('detailPanel').classList.add('open');
   }
+
+  // Open the detail panel unconditionally
+  document.getElementById('detailPanel').classList.add('open');
 }
 // -----------------------------
 // Очих жагсаалтанд нэмэх
@@ -248,10 +251,6 @@ export function removeFromBucket(placeId) {
     addBtn.style.background = '#3b82f6';
   }
 }
-
-// -----------------------------
-// Detail Panel-ийн товчлуурууд
-// -----------------------------
 export function setupDetailPanel() {
   const closeBtn = document.getElementById('closePanelBtn');
   if (closeBtn)

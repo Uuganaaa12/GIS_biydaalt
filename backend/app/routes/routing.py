@@ -51,9 +51,9 @@ def _osrm_route(profile: str, slon: float, slat: float, elon: float, elat: float
 @routing_bp.route("/route")
 def simple_route():
     try:
-        start = request.args.get("start")  # "lon,lat"
+        start = request.args.get("start") 
         end = request.args.get("end")
-        mode = request.args.get("mode", "car")  # car, foot, bicycle, bus
+        mode = request.args.get("mode", "car")
 
         if not start or not end:
             return jsonify({"error": "start and end are required as 'lon,lat'"}), 400
@@ -61,10 +61,7 @@ def simple_route():
         slon, slat = map(float, start.split(","))
         elon, elat = map(float, end.split(","))
 
-        # Map 'bus' to 'car' since OSRM doesn't have a bus profile by default
         osrm_profile = "car" if mode == "bus" else (mode or "car")
-
-        # Primary attempt with requested profile
         primary = _osrm_route(osrm_profile, slon, slat, elon, elat)
         if primary:
             geom, distance_m, duration_s = primary
@@ -79,7 +76,6 @@ def simple_route():
             }
             return jsonify({"type": "FeatureCollection", "features": [feature]})
 
-        # Graceful fallback: if walking profile is unavailable, try car routing instead
         if osrm_profile == "foot":
             alt = _osrm_route("car", slon, slat, elon, elat)
             if alt:
@@ -96,7 +92,6 @@ def simple_route():
                 }
                 return jsonify({"type": "FeatureCollection", "features": [feature]})
 
-        # Fallback: straight line
         line = LineString([(slon, slat), (elon, elat)])
         distance_m = haversine(slon, slat, elon, elat)
 
@@ -112,10 +107,6 @@ def simple_route():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-
-# -----------------------------
-# Overpass (OSM) bus stop import
-# -----------------------------
 OVERPASS_ENDPOINTS = [
     os.getenv("OVERPASS_URL"),
     "https://overpass-api.de/api/interpreter",
@@ -128,7 +119,7 @@ OVERPASS_ENDPOINTS = [e for e in OVERPASS_ENDPOINTS if e]
 def _overpass_fetch_bus_stops(bbox: str | None = None, timeout: int = 25):
     """Fetch bus stop nodes from Overpass within bbox."""
     if not bbox:
-        # south,west,north,east
+        
         bbox = "47.84,106.76,47.99,107.20"
 
     q = f"""
@@ -254,7 +245,7 @@ def bus_stop_count():
 @routing_bp.route("/route_bus")
 def route_bus():
     try:
-        start = request.args.get("start")  # "lon,lat"
+        start = request.args.get("start")  
         end = request.args.get("end")
         if not start or not end:
             return jsonify({"error": "start and end are required as 'lon,lat'"}), 400
@@ -262,7 +253,6 @@ def route_bus():
         slon, slat = map(float, start.split(","))
         elon, elat = map(float, end.split(","))
 
-        # Ensure we have bus stops; if none in DB, try to import automatically
         try:
             count = (
                 db.session.query(func.count())
@@ -277,7 +267,6 @@ def route_bus():
             if fetched:
                 _insert_bus_stops_dedup(fetched)
 
-        # Find nearest bus stops
         point_start = func.ST_SetSRID(func.ST_MakePoint(slon, slat), 4326)
         point_end = func.ST_SetSRID(func.ST_MakePoint(elon, elat), 4326)
 
@@ -344,17 +333,21 @@ def route_bus():
 
         # 1) Walk to start stop
         walk1 = _osrm_route("foot", slon, slat, sst_lon, sst_lat)
+        walk1_dist = None
         if walk1:
             geom, dist_m, dur_s = walk1
+            walk1_dist = dist_m
         else:
             car_alt = _osrm_route("car", slon, slat, sst_lon, sst_lat)
             if car_alt:
                 geom, dist_m, dur_s = car_alt
+                walk1_dist = dist_m
             else:
                 line = LineString([(slon, slat), (sst_lon, sst_lat)])
                 geom = mapping(line)
                 dist_m = haversine(slon, slat, sst_lon, sst_lat)
                 dur_s = None
+                walk1_dist = dist_m
         features.append(
             {
                 "type": "Feature",
@@ -369,15 +362,18 @@ def route_bus():
             }
         )
 
-        # 2) Bus between stops (use car profile as proxy)
+        # 2) Bus between stops (use car profile as proxy for path/length)
         bus_leg = _osrm_route("car", sst_lon, sst_lat, est_lon, est_lat)
+        bus_dist = None
         if bus_leg:
             geom, dist_m, dur_s = bus_leg
+            bus_dist = dist_m
         else:
             line = LineString([(sst_lon, sst_lat), (est_lon, est_lat)])
             geom = mapping(line)
             dist_m = haversine(sst_lon, sst_lat, est_lon, est_lat)
             dur_s = None
+            bus_dist = dist_m
         features.append(
             {
                 "type": "Feature",
@@ -422,17 +418,21 @@ def route_bus():
 
         # 3) Walk from end stop to destination
         walk2 = _osrm_route("foot", est_lon, est_lat, elon, elat)
+        walk2_dist = None
         if walk2:
             geom, dist_m, dur_s = walk2
+            walk2_dist = dist_m
         else:
             car_alt2 = _osrm_route("car", est_lon, est_lat, elon, elat)
             if car_alt2:
                 geom, dist_m, dur_s = car_alt2
+                walk2_dist = dist_m
             else:
                 line = LineString([(est_lon, est_lat), (elon, elat)])
                 geom = mapping(line)
                 dist_m = haversine(est_lon, est_lat, elon, elat)
                 dur_s = None
+                walk2_dist = dist_m
         features.append(
             {
                 "type": "Feature",
@@ -446,6 +446,50 @@ def route_bus():
                 },
             }
         )
+
+        # Calculate times based on fixed speeds: walk 5km/h, bus 20km/h, car 30km/h
+        try:
+            WALK_MPS = 5000.0 / 3600.0
+            BUS_MPS = 20000.0 / 3600.0
+            CAR_MPS = 30000.0 / 3600.0
+
+            w1 = float(walk1_dist or 0.0)
+            b = float(bus_dist or 0.0)
+            w2 = float(walk2_dist or 0.0)
+            walk1_s = round(w1 / WALK_MPS) if w1 > 0 else 0
+            bus_s = round(b / BUS_MPS) if b > 0 else 0
+            walk2_s = round(w2 / WALK_MPS) if w2 > 0 else 0
+            total_s = walk1_s + bus_s + walk2_s
+
+            # Car-only alternative over the whole start→end
+            car_full = _osrm_route("car", slon, slat, elon, elat)
+            if car_full:
+                _, car_dist_m, _ = car_full
+            else:
+                car_dist_m = haversine(slon, slat, elon, elat)
+            car_only_s = round(float(car_dist_m or 0.0) / CAR_MPS) if car_dist_m else 0
+
+            summary["times"] = {
+                "speeds_kmh": {"walk": 5, "bus": 20, "car": 30},
+                "distances_m": {
+                    "walk_to_stop": round(w1, 1),
+                    "bus": round(b, 1),
+                    "walk_from_stop": round(w2, 1),
+                },
+                "segments": {
+                    "walk_to_stop_s": walk1_s,
+                    "bus_s": bus_s,
+                    "walk_from_stop_s": walk2_s,
+                },
+                "total_time_s": total_s,
+                "car_only": {
+                    "distance_m": round(float(car_dist_m or 0.0), 1),
+                    "duration_s": car_only_s,
+                },
+            }
+        except Exception:
+            # If anything fails, don't block the response
+            pass
 
         return jsonify({"type": "FeatureCollection", "features": features, "summary": summary})
     except Exception as e:
