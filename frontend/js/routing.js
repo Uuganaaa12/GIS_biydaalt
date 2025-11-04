@@ -11,9 +11,34 @@ import {
 } from './state.js';
 import { createNumberedIcon } from './ui.js';
 
-// Layers and shared state
 export const routeLayer = L.geoJSON([], {
-  style: () => ({ color: '#2563eb', weight: 5, opacity: 0.85 }),
+  style: feature => {
+    const p = feature && feature.properties ? feature.properties : {};
+    const seg = p.segment;
+    const mode = (p.mode || '').toString().toLowerCase();
+
+    if (
+      seg === 'walk-to-stop' ||
+      seg === 'walk-from-stop' ||
+      mode === 'foot' ||
+      mode.includes('foot')
+    ) {
+      return { color: '#24d52dff', weight: 4, opacity: 0.95, dashArray: '6 8' };
+    }
+
+    if (seg === 'bus' || mode === 'bus' || mode.includes('bus')) {
+      return { color: '#2563eb', weight: 5, opacity: 0.9 };
+    }
+
+    if (mode === 'straight-line') {
+      return { color: '#94a3b8', weight: 3, opacity: 0.9, dashArray: '4 6' };
+    }
+    if (mode === 'car') {
+      return { color: '#010defff', weight: 5, opacity: 0.85 };
+    }
+
+    return { color: '#2563eb', weight: 5, opacity: 0.85 };
+  },
 }).addTo(map);
 
 const routeMarkersLayer = L.layerGroup().addTo(map);
@@ -417,7 +442,9 @@ export async function showBucketRoute() {
     return;
   }
 
-  try { setCurrentRouteType('bucket'); } catch {}
+  try {
+    setCurrentRouteType('bucket');
+  } catch {}
 
   const validList = bucketList.filter(
     item => item && Array.isArray(item.coords) && item.coords.length === 2
@@ -440,7 +467,6 @@ export async function showBucketRoute() {
 
   const elSummary = document.getElementById('busSummary');
   if (elSummary) elSummary.innerHTML = '';
-
   let start = [userLocation.lng, userLocation.lat];
   let end = validList[0].coords;
   const firstUrl = new URL(`${API_BASE}${busMode ? '/route_bus' : '/route'}`);
@@ -535,15 +561,29 @@ export async function showBucketRoute() {
         title: '🚌 Автобус (олон цэгийн нийлбэр)',
         totalSeconds: agg.total,
         segments: [
-          { icon: '🚶', title: 'Эхлэл → буудлууд' },
-          { icon: '🚌', title: 'Буудал ↔ буудал' },
-          { icon: '🚶', title: 'Буудлуудаас → цэгүүд' },
+          {
+            icon: '🚶',
+            title: 'Эхлэл → буудлууд',
+            seconds: agg.seg?.walk_to_stop_s || 0,
+          },
+          {
+            icon: '🚌',
+            title: 'Буудал ↔ буудал',
+            seconds: agg.seg?.bus_s || 0,
+          },
+          {
+            icon: '🚶',
+            title: 'Буудлуудаас → цэгүүд',
+            seconds: agg.seg?.walk_from_stop_s || 0,
+          },
         ],
       });
       const carCard = buildOptionCard({
         title: '🚗 Машин (30 км/ц тогтмол хурд, нийлбэр)',
         totalSeconds: agg.car.duration_s,
-        segments: [{ icon: '🚗', title: 'Шууд машин' }],
+        segments: [
+          { icon: '🚗', title: 'Шууд машин', seconds: agg.car.duration_s },
+        ],
         note: 'Алтернатив: зөвхөн машинаар явбал',
       });
 
@@ -567,9 +607,15 @@ export async function showBucketRoute() {
           }</div>
         </div>
       `;
+      ca.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;color:#374151;">
+          <div style="font-weight:600;">Leave now</div>
+        </div>
+        ${carCard}
+
+      `;
     }
   }
-
   const clearBtn = document.getElementById('clearRouteBtn');
   if (clearBtn) clearBtn.style.display = 'block';
 
@@ -592,5 +638,7 @@ export function clearRoute() {
   if (elSummary) elSummary.innerHTML = '';
   const clearBtn = document.getElementById('clearRouteBtn');
   if (clearBtn) clearBtn.style.display = 'none';
-  try { setCurrentRouteType('none'); } catch {}
+  try {
+    setCurrentRouteType('none');
+  } catch {}
 }
