@@ -237,15 +237,15 @@ export async function showDirectRouteToPlace(coords) {
           totalSeconds: t.total_time_s || 0,
           segments: busSegments,
         });
-        const carCard = buildOptionCard({
-          title: '🚗 Машин (30 км/ц тогтмол хурд, нийлбэр)',
-          totalSeconds: t.car_only?.duration_s || 0,
-          segments: carSegments,
-          note: 'Алтернатив: зөвхөн машинаар явбал',
-        });
+        // const carCard = buildOptionCard({
+        //   title: '🚗 Машин (30 км/ц тогтмол хурд, нийлбэр)',
+        //   totalSeconds: t.car_only?.duration_s || 0,
+        //   segments: carSegments,
+        //   note: 'Алтернатив: зөвхөн машинаар явбал',
+        // });
 
         elSummary.innerHTML = `
-          <div>${busCard}${carCard}</div>
+          <div>${busCard}</div>
           <div style="margin-top:6px;color:#075985;">
             <div style="font-weight:600;margin-bottom:4px;">Зогсоолын тойм:</div>
             <div>Эхэнд суух: <strong>${startStop}</strong></div>
@@ -578,21 +578,21 @@ export async function showBucketRoute() {
           },
         ],
       });
-      const carCard = buildOptionCard({
-        title: '🚗 Машин (30 км/ц тогтмол хурд, нийлбэр)',
-        totalSeconds: agg.car.duration_s,
-        segments: [
-          { icon: '🚗', title: 'Шууд машин', seconds: agg.car.duration_s },
-        ],
-        note: 'Алтернатив: зөвхөн машинаар явбал',
-      });
+      // const carCard = buildOptionCard({
+      //   title: '🚗 Машин (30 км/ц тогтмол хурд, нийлбэр)',
+      //   totalSeconds: agg.car.duration_s,
+      //   segments: [
+      //     { icon: '🚗', title: 'Шууд машин', seconds: agg.car.duration_s },
+      //   ],
+      //   note: 'Алтернатив: зөвхөн машинаар явбал',
+      // });
 
       el.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;color:#374151;">
           <div style="font-weight:600;">Leave now</div>
         </div>
         ${busCard}
-        ${carCard}
+
         <div style="margin-top:8px;color:#075985;">
           <div style="font-weight:600;margin-bottom:4px;">Зогсоолын тойм:</div>
           <div><span style="font-weight:500;">Эхэнд суух:</span> ${
@@ -606,13 +606,6 @@ export async function showBucketRoute() {
             combined.endStop
           }</div>
         </div>
-      `;
-      ca.innerHTML = `
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;color:#374151;">
-          <div style="font-weight:600;">Leave now</div>
-        </div>
-        ${carCard}
-
       `;
     }
   }
